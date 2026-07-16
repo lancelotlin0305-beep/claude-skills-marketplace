@@ -122,7 +122,10 @@ def node_size(t, name=""):
     if t == "database":
         return 56, 50              # 圓柱
     if t == "note":
-        return 150, 44             # 文字註解(開口括號)
+        # 文字註解(開口括號):高度隨字數自動加高(11 字/行、14px 行高),
+        # 文字必須收在幾何框內——框外標籤會溢出泳道且逃過幾何檢核(20260716.02)
+        lines = max(1, -(-len(name) // 11))
+        return 150, max(44, lines * 14 + 16)
     return TASK_W, TASK_H
 
 
@@ -2869,8 +2872,10 @@ def _drawio_page_xml(x, page_id):
                          % (ast["fill"], ast["stroke"]))
             elif t == "note":
                 ast = STYLE["artifact"]
+                # 標籤收在幾何框內(勿用 labelPosition=right:框外標籤會
+                # 溢出泳道且逃過幾何檢核,20260716.02 使用者實案)
                 style = ("shape=mxgraph.flowchart.annotation_2;html=1;align=left;"
-                         "verticalAlign=middle;labelPosition=right;spacingLeft=4;"
+                         "verticalAlign=middle;spacingLeft=16;spacingRight=4;"
                          "whiteSpace=wrap;fontSize=11;"
                          + "strokeColor=%s;fillColor=none;" % ast["stroke"])
             elif t == "database":

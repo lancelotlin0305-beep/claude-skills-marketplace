@@ -10,7 +10,7 @@ description: >-
   或上傳修改後的圖檔 / .md / .drawio / .bpmn / 相關描述文字要求更新迭代。
 ---
 
-<!-- skill 20260716.01 -->
+<!-- skill 20260716.02 -->
 <!-- 修改本 skill 時:同步更新上行版號(yyyymmdd.兩位數序號),並在 CHANGELOG.md 增列 -->
 
 # BPMN 直式流程圖產生器
