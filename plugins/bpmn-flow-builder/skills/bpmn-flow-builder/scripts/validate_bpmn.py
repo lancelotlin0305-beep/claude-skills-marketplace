@@ -436,6 +436,10 @@ def _check_drawio_page(dg, tag=""):
         for b in range(a + 1, len(keys2)):
             if keys2[a] in bnd2 or keys2[b] in bnd2:
                 continue    # 邊界事件貼附宿主,重疊為 BPMN 慣例
+            # 複合元件豁免:同一節點的子件(id 以「本體id__」起頭,如
+            # 註解的 __br 括號/__tx 文字)同座標屬設計(20260716.05)
+            if keys2[a].split("__")[0] == keys2[b].split("__")[0]:
+                continue
             if _boxes_overlap(nodes2[keys2[a]], nodes2[keys2[b]]):
                 iss.append(f"{tag}節點框重疊:{keys2[a]} ↔ {keys2[b]}")
     for c in cells:

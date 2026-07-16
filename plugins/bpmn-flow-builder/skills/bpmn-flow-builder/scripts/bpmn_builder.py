@@ -2985,15 +2985,23 @@ def _drawio_page_xml(x, page_id):
                          + "fillColor=%s;strokeColor=%s;"
                          % (ast["fill"], ast["stroke"]))
             elif t == "note":
+                # 括號與文字拆成兩個獨立 cell(20260716.05):單一 shape 的
+                # label 內距(spacingLeft)在不同 draw.io 版本的括號深度不一,
+                # 內距調多少都可能疊線;座標分離才是結構保證。
+                # 括號 cell 固定 12px 寬、無文字;文字 cell 自 +18px 起。
                 ast = STYLE["artifact"]
-                # 標籤收在幾何框內(勿用 labelPosition=right:框外標籤會
-                # 溢出泳道且逃過幾何檢核,20260716.02 使用者實案)
-                # spacingLeft=24:annotation_2 的括號深度大於 SVG 版(12px),
-                # 16px 內距仍疊線(20260716.04 使用者實見)
-                style = ("shape=mxgraph.flowchart.annotation_2;html=1;align=left;"
-                         "verticalAlign=middle;spacingLeft=24;spacingRight=4;"
-                         "whiteSpace=wrap;fontSize=11;"
-                         + "strokeColor=%s;fillColor=none;" % ast["stroke"])
+                # 本體=透明框(關連線端點釘選用,幾何與檢核一致)
+                cell(n["id"], "", "fillColor=none;strokeColor=none;",
+                     n["x"], n["y"], n["w"], n["h"])
+                cell(n["id"] + "__br", "",
+                     "shape=mxgraph.flowchart.annotation_2;html=1;"
+                     "strokeColor=%s;fillColor=none;" % ast["stroke"],
+                     n["x"], n["y"], 12, n["h"])
+                cell(n["id"] + "__tx", n["name"],
+                     "text;html=1;align=left;verticalAlign=middle;"
+                     "whiteSpace=wrap;fontSize=11;fontColor=#3a4a59;",
+                     n["x"] + 18, n["y"], n["w"] - 18, n["h"])
+                continue
             elif t == "database":
                 ast = STYLE["artifact"]
                 style = (_DIO_DATASTORE + "fillColor=%s;strokeColor=%s;"
@@ -3031,8 +3039,12 @@ def _drawio_page_xml(x, page_id):
                 fid, _pt = _flow_anchor(proc, spec)
                 fcell = "dio_%s__%s" % (proc.xid, fid)   # 線連到線(draw.io 原生支援)
                 cs, ct = (fcell, tg) if _is_flowref(s) else (s, fcell)
+                wps = assoc_waypoints(proc, s, tg)
+                # 錨定端的路徑點須顯式寫入(重複末點),否則 draw.io 會對
+                # 邊端點自行重佈末段、可能繞穿節點(20260716.05 使用者實見)
+                wps = ([wps[0]] + wps) if _is_flowref(s) else (wps + [wps[-1]])
                 emit_edge("dio_%s__%s" % (proc.xid, aid), cs, ct, lab,
-                          assoc_waypoints(proc, s, tg), _DIO_ASSOC)
+                          wps, _DIO_ASSOC)
             elif s in proc.nodes and tg in proc.nodes:
                 emit_edge("dio_%s__%s" % (proc.xid, aid), s, tg, lab,
                           assoc_waypoints(proc, s, tg),
