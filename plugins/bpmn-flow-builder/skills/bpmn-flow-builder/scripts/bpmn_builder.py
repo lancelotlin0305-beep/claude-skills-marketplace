@@ -1036,6 +1036,12 @@ def auto_layout(p, auto_route=True, compact=None):
         # 修正輪每次試算前重設回提示、全量重新選路——換位/加寬後的最佳
         # 分邊組合(如協同換邊)沿用舊定案 + 逐條精修常翻不出來。
         p._route_hints = {f[0]: f[4] for f in p.flows}
+    if not hasattr(p, "_art_manual"):
+        # 快照工件的手動 row/sub(僅首次):候選試算會重派全部節點的列,
+        # 沒有快照就無從還原「工件明給 row 者尊重不動」承諾(20260716.06)
+        p._art_manual = {k: (n["row"], n.get("sub") or 0)
+                         for k, n in p.nodes.items()
+                         if n["t"] in NONGRID_TS and n["row"] is not None}
     adj = {nid: [] for nid in p.nodes}
     radj = {nid: [] for nid in p.nodes}
     for fid, s, tg, lab, rt in p.flows:
@@ -1230,6 +1236,15 @@ def auto_layout(p, auto_route=True, compact=None):
         for nid, n in p.nodes.items():
             n["row"] = depth[nid]
             n["sub"] = sub[nid]
+        if p._art_manual:
+            # 手動工件還原快照值,並以「過濾複本」自 depth/sub 移除
+            # (勿就地 pop:_layer 回傳的字典可能被快取重用),
+            # _place_artifacts 的「row 非 None 且不在 depth」尊重條款
+            # 才成立(20260716.07)
+            for nid, (r0, s0) in p._art_manual.items():
+                p.nodes[nid]["row"], p.nodes[nid]["sub"] = r0, s0
+            depth = {k: v for k, v in depth.items() if k not in p._art_manual}
+            sub = {k: v for k, v in sub.items() if k not in p._art_manual}
         p.lane_subs = [max([n["sub"] for n in p.nodes.values()
                             if n["lane"] == i] or [0]) + 1
                        for i in range(len(p.lanes))]
@@ -1275,6 +1290,9 @@ def auto_layout(p, auto_route=True, compact=None):
     p.lane_pad = {}
     _lane_min_width(p)                       # 定案版同樣套用最小寬度本底
     for nid, n in p.nodes.items():
+        if nid in p._art_manual:             # 手動工件:尊重使用者座標(20260716.07)
+            n["row"], n["sub"] = p._art_manual[nid]
+            continue
         n["row"] = depth[nid]
         n["sub"] = sub[nid]
     _place_artifacts(p, depth, sub)
@@ -1885,6 +1903,117 @@ def _auto_routes(p):
                 if moved:
                     break
     _spread_ports(p)
+    _dodge_band_lines(p)
+
+
+def _dodge_band_lines(p):
+    """20260716.05:順序流的水平跳段避開分區(bands)水平線。
+    lane 交接的跳段 y(_orth_down 的 cy=ty-GAP)常恰落在分區邊界線上
+    (兩者同以列格線推得),FRAME_TOL 內即「框線重疊」鐵則違規;
+    即使略超 FRAME_TOL,距離 <2×LINE_GAP 的長並行人眼仍難辨(使用者
+    實證回饋)。此處於上下鄰折點間搜尋淨空 y 平移該水平段:
+    候選須離所有分區線 ≥2×LINE_GAP、不穿節點、不與他邊重合/貼行;
+    找不到淨空位則保留原樣,由「框線重疊」檢核如實回報。
+    結果持久化 wps_override(三種輸出與檢核共用)。"""
+    if not getattr(p, "bands", None):
+        return
+    lines = []
+    for _n, by0, by1, _f, _s in p.band_spans():
+        lines += [by0, by1]
+    if not lines:
+        return
+    ov = p.wps_override
+    edges = {}
+    for fid, s, tg, _lab, rt in p.flows:
+        S, T = p.nodes.get(s), p.nodes.get(tg)
+        if not S or not T or S.get("x") is None or T.get("x") is None:
+            continue
+        edges[fid] = (s, tg, [list(q) for q in (ov.get(fid)
+                                                or waypoints(S, T, rt))])
+    for fid, (s, tg, w) in edges.items():
+        if len(w) < 4:
+            continue
+        moved = False
+        for k in range(1, len(w) - 2):      # 首末段貼節點端口,不動
+            (ax, ay), (bx, by) = w[k], w[k + 1]
+            if abs(ay - by) > 1e-6 or abs(ax - bx) <= 30:
+                continue                     # 只處理 >30px 的水平段
+            if not any(abs(ay - fy) < 2 * LINE_GAP for fy in lines):
+                continue                     # 離分區線已達人眼可辨距
+            ylo = min(w[k - 1][1], w[k + 2][1]) + 8
+            yhi = max(w[k - 1][1], w[k + 2][1]) - 8
+            for d in (2 * LINE_GAP, -2 * LINE_GAP, 3 * LINE_GAP,
+                      -3 * LINE_GAP, 4 * LINE_GAP, -4 * LINE_GAP):
+                cy2 = ay + d
+                if not (ylo <= cy2 <= yhi):
+                    continue
+                if any(abs(cy2 - fy) < 2 * LINE_GAP for fy in lines):
+                    continue
+                cand = [list(q) for q in w]
+                cand[k][1] = cand[k + 1][1] = cy2
+                cand_t = [tuple(q) for q in cand]
+                hit = any(
+                    _seg_hits_box_b(cand_t[q], cand_t[q + 1], n)
+                    for q in range(len(cand_t) - 1)
+                    for nid, n in p.nodes.items()
+                    if nid not in (s, tg) and n.get("x") is not None
+                    and n["t"] != "note")
+                if hit:
+                    continue
+                clash = False
+                for fid2, (s2, tg2, w2) in edges.items():
+                    if fid2 == fid or {s, tg} & {s2, tg2}:
+                        continue
+                    w2t = [tuple(q) for q in w2]
+                    if _wps_overlap(cand_t, w2t) \
+                            or _wps_par_close(cand_t, w2t):
+                        clash = True
+                        break
+                if clash:
+                    continue
+                w[k][1] = w[k + 1][1] = cy2
+                ov[fid] = [tuple(q) for q in w]
+                edges[fid] = (s, tg, w)
+                moved = True
+                break
+            if moved:
+                break
+            # 走廊內無淨空位(列間隙 < 2×(2×LINE_GAP))→ 改側進:
+            # 自來源垂直下行至目標中心高度、水平進目標側端口,
+            # 水平段落在分區內部、遠離邊界線
+            T = p.nodes[tg]
+            tcy = T["y"] + T["h"] / 2
+            if any(abs(tcy - fy) < 2 * LINE_GAP for fy in lines):
+                continue
+            x0 = w[0][0]
+            if x0 < T["x"] - 1:
+                tp = (T["x"], tcy)
+            elif x0 > T["x"] + T["w"] + 1:
+                tp = (T["x"] + T["w"], tcy)
+            else:
+                continue
+            cand_t = [tuple(w[0]), (x0, tcy), tp]
+            hit = any(
+                _seg_hits_box_b(cand_t[q], cand_t[q + 1], n)
+                for q in range(len(cand_t) - 1)
+                for nid, n in p.nodes.items()
+                if nid not in (s, tg) and n.get("x") is not None
+                and n["t"] != "note")
+            if hit:
+                continue
+            clash = False
+            for fid2, (s2, tg2, w2) in edges.items():
+                if fid2 == fid or {s, tg} & {s2, tg2}:
+                    continue
+                w2t = [tuple(q) for q in w2]
+                if _wps_overlap(cand_t, w2t) or _wps_par_close(cand_t, w2t):
+                    clash = True
+                    break
+            if clash:
+                continue
+            ov[fid] = cand_t
+            edges[fid] = (s, tg, [list(q) for q in cand_t])
+            break
 
 
 _SPREAD_TS = ("task", "database")   # 矩形類節點才錯開(圓/菱形端點會浮離外框)
@@ -3036,15 +3165,20 @@ def _drawio_page_xml(x, page_id):
                 spec = s if _is_flowref(s) else tg
                 if node_id not in proc.nodes:
                     continue
-                fid, _pt = _flow_anchor(proc, spec)
-                fcell = "dio_%s__%s" % (proc.xid, fid)   # 線連到線(draw.io 原生支援)
-                cs, ct = (fcell, tg) if _is_flowref(s) else (s, fcell)
                 wps = assoc_waypoints(proc, s, tg)
-                # 錨定端的路徑點須顯式寫入(重複末點),否則 draw.io 會對
-                # 邊端點自行重佈末段、可能繞穿節點(20260716.05 使用者實見)
-                wps = ([wps[0]] + wps) if _is_flowref(s) else (wps + [wps[-1]])
+                # 勿用 draw.io 邊對邊連接:實測(20260716.06 使用者截圖)其
+                # 端點無視顯式路徑點、自行重佈成斜線黏到附近節點。改在錨定
+                # 點放 2×2 透明錨點 cell,虛線連到錨點——端點固定不可重佈。
+                apt = wps[0] if _is_flowref(s) else wps[-1]
+                anch = "dio_%s__anch_%s" % (proc.xid, aid)
+                cell(anch, "", "fillColor=none;strokeColor=none;",
+                     apt[0] - 1, apt[1] - 1, 2, 2)
+                cs, ct = (anch, tg) if _is_flowref(s) else (s, anch)
+                pin = ("exitX=0.5;exitY=0.5;exitDx=0;exitDy=0;"
+                       if _is_flowref(s) else
+                       "entryX=0.5;entryY=0.5;entryDx=0;entryDy=0;")
                 emit_edge("dio_%s__%s" % (proc.xid, aid), cs, ct, lab,
-                          wps, _DIO_ASSOC)
+                          wps, _DIO_ASSOC + pin)
             elif s in proc.nodes and tg in proc.nodes:
                 emit_edge("dio_%s__%s" % (proc.xid, aid), s, tg, lab,
                           assoc_waypoints(proc, s, tg),
