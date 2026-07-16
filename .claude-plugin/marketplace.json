@@ -1,0 +1,19 @@
+{
+  "name": "lancelot-skills",
+  "owner": {
+    "name": "Lancelot Lin",
+    "email": "lancelot.lin0305@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "bpmn-flow-builder",
+      "source": "./plugins/bpmn-flow-builder",
+      "description": "把流程說明、會議記錄或現有流程圖轉成符合 BPMN 規則的直式流程圖，固定輸出 6 檔並支援迭代進版"
+    },
+    {
+      "name": "drawio-skill",
+      "source": "./plugins/drawio-skill",
+      "description": "產生 .drawio XML 並以 draw.io desktop CLI 匯出的通用圖表 skill（架構圖、UML、ER、流程圖等）"
+    }
+  ]
+}
