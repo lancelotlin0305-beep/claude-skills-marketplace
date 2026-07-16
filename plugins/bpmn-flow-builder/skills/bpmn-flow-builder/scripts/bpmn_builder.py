@@ -4046,13 +4046,15 @@ def _render_pages(diagrams):
 
 
 def emit_multi(diagrams, project, outdir=".", version="V01.00", src=None,
-               change=None, change_kind=None, change_source=None):
+               change=None, change_kind=None, change_source=None,
+               xml=True, svg=True, viewer=True):
     """多張流程圖 → 專案級交付(單一多頁 .drawio):
-      1) {project}_{version}.drawio      多頁,每張圖一個頁籤(draw.io 底部切換)
-      2) 每張圖各自 {圖名}_{version}.svg 與 .md(對話預覽與說明仍逐圖)
-      3) {project}_{version}_檢視器.html  多頁檢視器(頁籤切換、各頁縮放/搜尋)
-      4) {project}_{version}_流程定義.py (src=__file__ 複製)
-      5) {project}_版本記錄.md            專案層級,任一圖結構變動→主版進位
+    必產:每張圖各自 {圖名}_{version}.md、{project}_{version}_流程定義.py
+      (src=__file__ 複製)、{project}_版本記錄.md(專案層級,任一圖結構
+      變動→主版進位)。
+    可選(首次產出時詢問使用者,要才產;xml/svg/viewer=False 略過):
+      {project}_{version}.drawio(多頁,每張圖一個頁籤)、各圖 .svg、
+      {project}_{version}_檢視器.html(多頁檢視器,頁籤切換/縮放/搜尋)。
     版號以專案為準:所有圖與檔案共用同一 version。回傳各圖問題清單 dict。
     """
     if not diagrams:
@@ -4080,14 +4082,16 @@ def emit_multi(diagrams, project, outdir=".", version="V01.00", src=None,
     for x in diagrams:
         x.version = version
     rendered = _render_pages(diagrams)     # 逐圖串行產出
-    open(base + ".drawio", "w", encoding="utf-8").write(
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<mxfile host="bpmn-flow-builder">\n'
-        + "\n".join(r[3] for r in rendered)
-        + '\n</mxfile>\n')
-    open(base + "_檢視器.html", "w", encoding="utf-8").write(
-        build_viewer_html_multi(diagrams, f"{project} {version} 檢視器",
-                                svgs=[r[5] for r in rendered]))
+    if xml:
+        open(base + ".drawio", "w", encoding="utf-8").write(
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<mxfile host="bpmn-flow-builder">\n'
+            + "\n".join(r[3] for r in rendered)
+            + '\n</mxfile>\n')
+    if viewer:
+        open(base + "_檢視器.html", "w", encoding="utf-8").write(
+            build_viewer_html_multi(diagrams, f"{project} {version} 檢視器",
+                                    svgs=[r[5] for r in rendered]))
     if src:
         import shutil
         dst = base + "_流程定義.py"
@@ -4098,29 +4102,38 @@ def emit_multi(diagrams, project, outdir=".", version="V01.00", src=None,
     _write_changelog_row(project, project, version, outdir,
                          change, change_kind, change_source)
     results = {}
-    for _i, stem, _name, _page, svg, _svg_np, md, sem, problems, secs \
+    for _i, stem, _name, _page, svg_s, _svg_np, md, sem, problems, secs \
             in rendered:
         dbase = os.path.join(verdir, f"{stem}_{version}")
-        open(dbase + ".svg", "w", encoding="utf-8").write(svg)
+        if svg:                       # svg=布林開關,svg_s=該頁 SVG 字串
+            open(dbase + ".svg", "w", encoding="utf-8").write(svg_s)
         open(dbase + ".md", "w", encoding="utf-8").write(md)
         results[stem] = sem + problems
         _print_page_report(f"page: {stem}", sem, problems, secs,
-                           hops=svg.count("A5,5 "))
-    print("written:", f"{project}_{version}.drawio",
-          f"(共 {len(diagrams)} 頁)+ 多頁檢視器 + 各圖 SVG/MD")
+                           hops=svg_s.count("A5,5 "))
+    parts = [p for p, on in ((f"{project}_{version}.drawio(共 "
+                              f"{len(diagrams)} 頁)", xml),
+                             ("多頁檢視器", viewer), ("各圖 SVG", svg))
+             if on] + ["各圖 MD"]
+    print("written:", " + ".join(parts))
     return results
 
 
 def emit(x, outdir=".", viewer=True, src=None, fmt="drawio",
-         change=None, change_kind=None, change_source=None):
-    """產出全部交付物(每張圖 6 檔):
-      1) 圖檔 XML:預設 fmt="drawio" → .drawio(draw.io 用),**不需詢問使用者**;
-         僅當使用者明講要用 bpmn.io 時改 fmt="bpmn" → .bpmn。
-         兩工具格式不相容、不可互餵。
-      2) .svg  3) .md 流程說明  4) _檢視器.html(viewer=True,預設固定產出)
-      5) _流程定義.py(src=__file__ 時自動複製本次定義檔)
-      6) _版本記錄.md(獨立累積,change=變更摘要、change_kind=初版/結構/文字、
+         change=None, change_kind=None, change_source=None,
+         xml=True, svg=True):
+    """產出交付物(必產 3 檔 + 可選 3 檔,20260716.09):
+    必產:
+      1) .md 流程說明
+      2) _流程定義.py(src=__file__ 時自動複製本次定義檔)
+      3) _版本記錄.md(獨立累積,change=變更摘要、change_kind=初版/結構/文字、
          change_source=變更來源,如「使用者修改 .md」「使用者修改 .bpmn」「口頭指示」)
+    可選(首次產出時詢問使用者,要才產;xml/svg/viewer=False 略過):
+      4) 圖檔 XML(xml=True):fmt="drawio" → .drawio(預設);僅使用者明講
+         要用 bpmn.io 時改 fmt="bpmn" → .bpmn。兩工具格式不相容、不可互餵。
+      5) .svg(svg=True)
+      6) _檢視器.html(viewer=True)
+    語意/版面檢核(check_semantics/check_layout)不論開關一律執行。
     """
     if fmt not in ("bpmn", "drawio"):
         raise ValueError(f"fmt 只能是 'bpmn' 或 'drawio',收到 {fmt!r}")
@@ -4132,14 +4145,16 @@ def emit(x, outdir=".", viewer=True, src=None, fmt="drawio",
         else os.path.join(outdir, x.version)
     os.makedirs(verdir, exist_ok=True)
     base = os.path.join(verdir, stem + "_" + x.version)
-    if fmt == "drawio":
-        open(base + ".drawio", "w", encoding="utf-8").write(build_drawio(x))
-    else:
-        open(base + ".bpmn", "w", encoding="utf-8").write(build_bpmn(x))
+    if xml:
+        if fmt == "drawio":
+            open(base + ".drawio", "w", encoding="utf-8").write(build_drawio(x))
+        else:
+            open(base + ".bpmn", "w", encoding="utf-8").write(build_bpmn(x))
     sem = check_semantics(x)
     problems = check_layout(x)
-    svg_str = build_svg(x)
-    open(base + ".svg", "w", encoding="utf-8").write(svg_str)
+    svg_str = build_svg(x)     # 跨線橋計數與檢核回報仍需,不論 svg 開關
+    if svg:
+        open(base + ".svg", "w", encoding="utf-8").write(svg_str)
     open(base + ".md", "w", encoding="utf-8").write(
         build_md(x) + _iron_md_section(sem, problems))
     if viewer:

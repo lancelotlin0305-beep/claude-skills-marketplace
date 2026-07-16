@@ -162,7 +162,7 @@
 | 節點重疊 | 5 | 節點框互相重疊 |
 | 節點壓泳道線 | 5 | 節點超出所屬泳道邊界(鐵則②;邊界事件豁免) |
 | 端口重合 | 5 | 同節點多條線共用同一進出點 |
-| 平行間距不足 | 5 | 同向平行段距離 <10px 且並行 >30px |
+| 平行間距不足 | 5 | 雙門檻(鐵則④):短並行(>30px)距離 <10px;長並行(>150px)距離 <2×LINE_GAP=24px |
 | 框線重疊 | 5 | 連線沿泳道/pool/容器框貼行(≤4px 貼行 >30px;交錯穿越不算) |
 | 分區列範圍重疊 | 5 | 兩個 bands 分區的列範圍交錯(版面試算與修正輪會優先避免;分區成員與流向交錯時屬建模問題,計分後如實回報) |
 | 繞行過長 | 3 | 路徑長 > 曼哈頓距 ×2.2 且超出 >150px |
@@ -174,10 +174,12 @@
 
 訊息流跨 pool 飛越節點屬慣例,列提醒級不計分。
 
-> **評分器涵蓋範圍**:上表前 14 項為 `check_layout` / `layout_score` 的計分類別
-> (權重單一來源);「順序流缺方向」為檔案級硬性項,只在 `validate_bpmn.py`
+> **評分器涵蓋範圍**:上表所有帶權重的項目即 `check_layout` / `layout_score`
+> 的計分類別(權重單一來源;程式內「標籤」「溢出」兩鍵在表中合併為
+> 「標籤碰撞/溢出」列、「工件離夥伴過遠」對應訊息鍵「貼鄰」);
+> 「順序流缺方向」為檔案級硬性項,只在 `validate_bpmn.py`
 > 攔截,不進 `layout_score` 加權(它驗的是輸出樣式而非幾何)。三方帳目:
-> conventions 登記全部 → check_layout 計前 14 項 → validate 計幾何子集
+> conventions 登記全部 → check_layout 計全部權重項 → validate 計幾何子集
 > (穿越/斜線/交叉/重疊)+ 箭頭方向硬性項。
 
 ## 語意檢核項目(check_semantics,emit 必跑;不計分、逐項回報)
@@ -239,16 +241,19 @@
 |---|---|---|---|
 | 語意 | `check_semantics(x)`(emit 必跑) | 懸空/孤兒、start/end 數量、可達性、閘道規則、訊息流跨 pool | **兩種 fmt 皆同** |
 | 版面 | `check_layout(x)`(emit 必跑) | 重疊、穿框、交叉、重合、斜線、標籤碰撞、閘道字數、bands | **三種輸出共用同一幾何** |
-| 檔案級 .bpmn | `validate_bpmn.py` | NCName、參照、incoming/outgoing、泳道覆蓋、DI 完整、**交付完整性**(6 檔齊備)+ 語意/版面**再驗**(第二道防線,涵蓋使用者手改檔) | .bpmn |
+| 檔案級 .bpmn | `validate_bpmn.py` | NCName、參照、incoming/outgoing、泳道覆蓋、DI 完整、**交付完整性**(必產檔齊備;可選檔缺列提醒)+ 語意/版面**再驗**(第二道防線,涵蓋使用者手改檔) | .bpmn |
 | 檔案級 .drawio | `validate_bpmn.py` | 根節點 0/1、id 唯一、參照、mxGeometry、**交付完整性** + 幾何**再驗**(重疊/穿框,排除框架 cell) | .drawio |
 | 檔案級 .svg | `validate_bpmn.py` | 預覽安全(viewBox/比例/背景) | .svg |
 
 ## 產出後務必驗證(本環境無法 render SVG,故以下兩步為主)
 1. **離線版面檢查**:`emit()` 會自動跑 `check_layout(p)`,在終端列出「節點重疊 / 連線穿過節點 /
-   連線交叉」。也可單獨呼叫 `check_layout(p)` 取得問題清單。**有警告就調整 route 或 row/lane 後重跑。**
+   連線交叉」。也可單獨呼叫 `check_layout(p)` 取得問題清單。是否人工調整依
+   `workflow.md` 微調規則:**硬傷清零即交付,殘餘低權重視覺分如實回報、預設 0 輪手動微調**。
 2. **結構與版面驗證**:跑 `python3 scripts/validate_bpmn.py <資料夾>`,檢查參照一致性、
-   懸空/孤兒、起點可達性、能否抵達終點、閘道分支、DI 完整、**交付完整性(每張圖 6 檔齊備)**,
+   懸空/孤兒、起點可達性、能否抵達終點、閘道分支、DI 完整、**交付完整性
+   (必產 3 檔缺=FAIL;可選檔缺=提醒)**,
    並從圖檔 XML(.bpmn 或 .drawio)的座標再驗一次重疊/穿框。
+   未產圖檔 XML 時本步無檔可驗,以第 1 步 emit 內建檢核為交付門檻。
 3. **真要看圖**:把 `.svg` 用瀏覽器開、或把 `.bpmn` 拖進 [bpmn.io](https://bpmn.io) 檢視。
    注意:本執行環境的 ImageMagick **缺 SVG delegate,`convert x.svg x.png` 會失敗**,
    且通常無網路,因此請依賴上面的離線檢查,不要靠 ImageMagick 轉圖。
@@ -280,8 +285,8 @@
 - `validate_bpmn.py` 對所有輸出 `.svg` 檢查:①不寫死 width/height
   ②寬高比 ≥1.3(帶 `data-pad="capped"` 者放行、改列 • 提醒)③背景覆蓋完整。
 
-## HTML 檢視器(固定交付物之一)
-- `emit()` 預設即產出 `_檢視器.html`;**不要手寫檢視器**(內嵌與縮放機制見 `internals.md`)。
+## HTML 檢視器(可選交付物,使用者勾選才產)
+- 使用者勾選時由 `emit(viewer=True)` 產出 `_檢視器.html`;**不要手寫檢視器**(內嵌與縮放機制見 `internals.md`)。
 - 分工:`.svg`(補白、僅 viewBox)為正式交付與 bpmn.io / Figma 匯入用途;
   `_檢視器.html` 僅供對話內縮放檢視,其內嵌 SVG 不受 `.svg` 預覽安全規則約束。
 - **多頁檢視器 defs id 隔離(維護提醒)**:多張 SVG 內嵌同一 HTML 時,

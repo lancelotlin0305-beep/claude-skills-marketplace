@@ -332,11 +332,12 @@ def svg_files(args):
 
 
 def check_deliverables(diagram_path):
-    """交付完整性。單圖:圖檔 XML(.bpmn 或 .drawio 擇一)/.svg/.md/
-    _檢視器.html/_流程定義.py + {圖名}_版本記錄.md(不帶版號,跨版累積)。
-    多頁 .drawio(專案級,emit_multi 產出):改要求 _檢視器.html/_流程定義.py/
-    版本記錄;各頁 SVG/MD 以各圖自己的檔名產出,不掛在專案 stem 下。"""
-    iss = []
+    """交付完整性(20260716.09 分級)。必產(缺=FAIL):單圖 .md/_流程定義.py、
+    多頁 .drawio(專案級)_流程定義.py + {圖名}_版本記錄.md(不帶版號,跨版累積)。
+    可選(缺=提醒,首次產出時由使用者選擇):.svg/_檢視器.html
+    (圖檔 XML 本身即驗證錨點,存在才會走到本檢查)。
+    回傳 (iss, notes)。"""
+    iss, notes = [], []
     base = os.path.splitext(diagram_path)[0]
     multi = False
     if diagram_path.endswith('.drawio'):
@@ -344,10 +345,15 @@ def check_deliverables(diagram_path):
             multi = open(diagram_path, encoding='utf-8').read().count('<diagram') > 1
         except OSError:
             pass
-    sufs = ('_檢視器.html', '_流程定義.py') if multi         else ('.svg', '.md', '_檢視器.html', '_流程定義.py')
-    for suf in sufs:
+    req = ('_流程定義.py',) if multi else ('.md', '_流程定義.py')
+    opt = ('_檢視器.html',) if multi else ('.svg', '_檢視器.html')
+    for suf in req:
         if not os.path.exists(base + suf):
             iss.append(f"缺交付物:{os.path.basename(base + suf)}")
+    for suf in opt:
+        if not os.path.exists(base + suf):
+            notes.append(f"可選交付物未產出:{os.path.basename(base + suf)}"
+                         "(使用者未勾選則屬正常)")
     stem = os.path.basename(base)
     xid = stem.rsplit('_V', 1)[0] if '_V' in stem else stem
     d = os.path.dirname(diagram_path) or '.'
@@ -356,7 +362,7 @@ def check_deliverables(diagram_path):
             os.path.join(os.path.dirname(os.path.abspath(d)), xid + '_版本記錄.md')]
     if not any(os.path.exists(l) for l in logs):
         iss.append(f"缺版本記錄表:{xid}_版本記錄.md")
-    return iss
+    return iss, notes
 
 
 def check_drawio(f):
@@ -496,11 +502,12 @@ def _check_one(f):
     for nt in notes: lines.append("   • " + str(nt))
     ok = not iss
     if not f.endswith('.svg'):
-        miss = check_deliverables(f)
+        miss, opt_notes = check_deliverables(f)
         if miss:
             lines.append("FAIL " + os.path.basename(f) + "(交付完整性)")
             for i in miss: lines.append("   ✗ " + str(i))
             ok = False
+        for nt in opt_notes: lines.append("   • " + str(nt))
     return f, lines, ok, iss, notes
 
 
