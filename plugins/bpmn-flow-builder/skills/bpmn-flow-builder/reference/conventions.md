@@ -216,6 +216,7 @@
 | Input/Output | `t="input"/"output"` + `p.assoc(節點, 工件)` | 文件形(箭頭空心/實心) |
 | Database | `t="database"` | 圓柱 |
 | 關連 | `p.assoc(a, b, label)` | 點線無箭頭,走線自動避讓(assoc_waypoints) |
+| 關連錨定到線 | `p.assoc(註解id, ("流程來源id","流程目標id"))` | 註解說明某條**分支線**時,端點給 tuple 錨定到該順序流最長段中點;.drawio 輸出為原生線連線(20260716.03) |
 | 中間事件 | message/timer 等有進有出時 | 自動雙圈(單圈=起訖) |
 | 擲出事件 | `kind="throw"` | 圖示實心(如 escalation 陳報) |
 | 邊界事件 | `attach="宿主id"`(`interrupting=False`=非中斷虛線) | 貼宿主右下,→ .bpmn boundaryEvent |

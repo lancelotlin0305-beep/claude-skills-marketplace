@@ -276,9 +276,15 @@ class Proc:
 
     def assoc(self, src, tgt, label=""):
         """關連(點線、無箭頭):把工件(input/output/database)掛到節點,
-        或節點掛工件;不參與順序流語意,但參與版面與佈局。"""
+        或節點掛工件;不參與順序流語意,但參與版面與佈局。
+        端點可給 tuple ("流程來源id","流程目標id") 錨定到該**順序流本身**
+        (如註解說明某條分支線;20260716.03)。"""
         aid = f"as_{len(self.assocs)+1}"
-        self.assocs.append((aid, _ncname(src), _ncname(tgt), label))
+        def _ep(e):
+            if isinstance(e, (tuple, list)):   # 錨定到順序流
+                return "flow:%s>%s" % (_ncname(e[0]), _ncname(e[1]))
+            return _ncname(e)
+        self.assocs.append((aid, _ep(src), _ep(tgt), label))
         return aid
 
     def _place(self, nid):
@@ -2101,6 +2107,51 @@ def _assoc_dodge(proc, src, tgt, wps, prior):
     return wps
 
 
+def _is_flowref(e):
+    return isinstance(e, str) and e.startswith("flow:")
+
+
+def _flow_anchor(proc, spec):
+    """spec='flow:s>t' → (fid, (ax,ay)):該順序流最長段中點作錨定點。"""
+    s, t = spec[5:].split(">", 1)
+    ov = getattr(proc, "wps_override", {})
+    for fid, fs, ft, _l, rt in proc.flows:
+        if fs == s and ft == t:
+            wps = ov.get(fid) or waypoints(proc.nodes[fs],
+                                           proc.nodes[ft], rt)
+            i = max(range(len(wps) - 1),
+                    key=lambda k: abs(wps[k + 1][0] - wps[k][0])
+                    + abs(wps[k + 1][1] - wps[k][1]))
+            return fid, ((wps[i][0] + wps[i + 1][0]) / 2,
+                         (wps[i][1] + wps[i + 1][1]) / 2)
+    raise ValueError(f"assoc 錨定的順序流不存在:{spec}")
+
+
+def _flowref_partner(spec):
+    """flow:s>t → s(供工件自動放置以流程來源節點作夥伴)。"""
+    return spec[5:].split(">", 1)[0]
+
+
+def _assoc_route_flowref(proc, node_id, spec):
+    """節點 ↔ 順序流錨定點的正交走線(節點側取面向錨點的側邊中點)。"""
+    _fid_, (ax, ay) = _flow_anchor(proc, spec)
+    S = proc.nodes[node_id]
+    if ax >= S["x"] + S["w"]:
+        sp = (S["x"] + S["w"], S["y"] + S["h"] / 2)
+    elif ax <= S["x"]:
+        sp = (S["x"], S["y"] + S["h"] / 2)
+    else:
+        sp = (S["x"] + S["w"] / 2,
+              S["y"] if ay < S["y"] else S["y"] + S["h"])
+    wps = [sp]
+    if abs(sp[0] - ax) > 1 and abs(sp[1] - ay) > 1:
+        wps.append((ax, sp[1]))
+    elif abs(sp[1] - ay) <= 1 and abs(sp[0] - ax) <= 1:
+        pass
+    wps.append((ax, ay))
+    return wps
+
+
 def _route_assocs(proc):
     """全部關連線一次選路(20260710.14 全體互覺),依宣告順序逐條決定,
     後決定者把先決定者的路徑/端點計入衝突分;仍共線者走廊平移避讓。
@@ -2108,6 +2159,16 @@ def _route_assocs(proc):
     used = _flow_ports(proc)
     cache, prior, aports = {}, [], set()
     for aid, src, tgt, lab in proc.assocs:
+        if _is_flowref(src) or _is_flowref(tgt):
+            node_id = tgt if _is_flowref(src) else src
+            spec = src if _is_flowref(src) else tgt
+            if node_id not in proc.nodes:
+                continue
+            w = _assoc_route_flowref(proc, node_id, spec)
+            wps = w if node_id == src else list(reversed(w))
+            cache[(src, tgt)] = wps
+            prior.append(wps)
+            continue
         if src not in proc.nodes or tgt not in proc.nodes:
             continue
         wps = _assoc_route_one(proc, src, tgt, used, prior, aports)
@@ -2203,6 +2264,9 @@ def _place_artifacts(p, depth, sub):
                 and not p.nodes[k].get("attach")}
     partner = {}
     for aid, a, b, lab in p.assocs:
+        # 順序流錨定端點以其流程「來源節點」作放置夥伴(20260716.03)
+        a = _flowref_partner(a) if _is_flowref(a) else a
+        b = _flowref_partner(b) if _is_flowref(b) else b
         if a in p.nodes and b in p.nodes:
             ta, tb = p.nodes[a]["t"], p.nodes[b]["t"]
             if ta in NONGRID_TS and tb not in NONGRID_TS:
@@ -2480,6 +2544,11 @@ def _process_xml(proc, pidx):
         fl.append(f'    <bpmn:sequenceFlow id="{_fid(proc, fid)}"{_attr("name", lab)} '
                   f'sourceRef="{s}" targetRef="{tg}"/>')
     for aid, s, tg, lab in proc.assocs:
+        # 順序流錨定端點 → 以該 sequenceFlow 的 id 作 ref(20260716.03)
+        if _is_flowref(s):
+            s = _fid(proc, _flow_anchor(proc, s)[0])
+        if _is_flowref(tg):
+            tg = _fid(proc, _flow_anchor(proc, tg)[0])
         fl.append(f'    <bpmn:association id="{_fid(proc, aid)}" '
                   f'associationDirection="None" sourceRef="{s}" targetRef="{tg}"/>')
     groups = "".join(
@@ -2552,7 +2621,10 @@ def _pool_di_xml(proc, pidx, pool_h):
             f'      <bpmndi:BPMNEdge id="di_{_fid(proc, fid)}" bpmnElement="{_fid(proc, fid)}">{wp}{label}\n'
             f'      </bpmndi:BPMNEdge>')
     for aid, src, tg, lab in proc.assocs:
-        if src not in proc.nodes or tg not in proc.nodes:
+        flowref = _is_flowref(src) or _is_flowref(tg)
+        if not flowref and (src not in proc.nodes or tg not in proc.nodes):
+            continue
+        if flowref and (tg if _is_flowref(src) else src) not in proc.nodes:
             continue
         wps = assoc_waypoints(proc, src, tg)
         wp = "".join(f'\n        <di:waypoint x="{int(round(px))}" y="{int(round(py))}"/>'
@@ -2810,11 +2882,16 @@ def _drawio_page_xml(x, page_id):
                  lx, POOL_Y, proc.lane_width(li), LANE_LABEL_H)
 
     def emit_edge(eid, s, tg, lab, wps, base_style):
-        ns, nt = allnodes[s], allnodes[tg]
-        style = _dio_pin(base_style, wps[0], (ns["x"], ns["y"], ns["w"], ns["h"]),
-                         "source")
-        style = _dio_pin(style, wps[-1], (nt["x"], nt["y"], nt["w"], nt["h"]),
-                         "target")
+        # 端點也可以是另一條邊的 cell id(線連到線,20260716.03):
+        # 非節點端點跳過 port 釘選,由 waypoints 決定接點。
+        ns, nt = allnodes.get(s), allnodes.get(tg)
+        style = base_style
+        if ns is not None:
+            style = _dio_pin(style, wps[0],
+                             (ns["x"], ns["y"], ns["w"], ns["h"]), "source")
+        if nt is not None:
+            style = _dio_pin(style, wps[-1],
+                             (nt["x"], nt["y"], nt["w"], nt["h"]), "target")
         pts = "".join('<mxPoint x="%d" y="%d"/>' % (int(round(px)), int(round(py)))
                       for px, py in wps[1:-1])
         if pts:
@@ -2907,7 +2984,17 @@ def _drawio_page_xml(x, page_id):
                       mf_waypoints(allnodes[s], allnodes[tg]), _DIO_MSG)
     for proc in pools:
         for aid, s, tg, lab in proc.assocs:
-            if s in proc.nodes and tg in proc.nodes:
+            if _is_flowref(s) or _is_flowref(tg):
+                node_id = tg if _is_flowref(s) else s
+                spec = s if _is_flowref(s) else tg
+                if node_id not in proc.nodes:
+                    continue
+                fid, _pt = _flow_anchor(proc, spec)
+                fcell = "dio_%s__%s" % (proc.xid, fid)   # 線連到線(draw.io 原生支援)
+                cs, ct = (fcell, tg) if _is_flowref(s) else (s, fcell)
+                emit_edge("dio_%s__%s" % (proc.xid, aid), cs, ct, lab,
+                          assoc_waypoints(proc, s, tg), _DIO_ASSOC)
+            elif s in proc.nodes and tg in proc.nodes:
                 emit_edge("dio_%s__%s" % (proc.xid, aid), s, tg, lab,
                           assoc_waypoints(proc, s, tg),
                           _DIO_ASSOC)
@@ -3226,7 +3313,8 @@ def _svg_nodes(proc):
             lines = wrap(n["name"], 11)
             start = cy - (len(lines) - 1) * 7
             for k, ln in enumerate(lines):
-                s.append(f'<text x="{x+8}" y="{start+k*14+4}" font-size="11.5" '
+                # x+16:文字起點須在開口括號(0~12px)之外,勿疊線(20260716.03)
+                s.append(f'<text x="{x+16}" y="{start+k*14+4}" font-size="11.5" '
                          f'fill="#3a4a59">{escape(ln)}</text>')
         elif t == "database":
             ast = STYLE["artifact"]
@@ -3260,7 +3348,10 @@ def _svg_assocs(proc, segs=None):
     if segs is None:
         segs = []
     for aid, src, tg, lab in proc.assocs:
-        if src not in proc.nodes or tg not in proc.nodes:
+        flowref = _is_flowref(src) or _is_flowref(tg)
+        if not flowref and (src not in proc.nodes or tg not in proc.nodes):
+            continue
+        if flowref and (tg if _is_flowref(src) else src) not in proc.nodes:
             continue
         wps = assoc_waypoints(proc, src, tg)
         d = _hops_path(wps, segs)
