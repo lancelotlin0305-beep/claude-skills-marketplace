@@ -2,6 +2,7 @@
 
 | skill 版號 | 日期 | 變更摘要 |
 |-----------|------|----------|
+| 20260716.04 | 2026-07-16 | 【錨定線避讓+括號內距二修】(使用者實見:錨定虛線橫穿「檢視判讀資料」節點;文字仍疊括號線)①_assoc_route_flowref 重寫為候選評分:錨點候選=流程每線段 25/50/75% 點(過短線段跳過)、節點四邊中點皆候選、進線末段垂直於流程線段(沿線進入會與順序流重合),評分=穿節點×20+轉折+長度/1000 取優 ②錨定線納入 check_layout 邊清單(原 guard 只認節點端點→穿越漏檢)③.drawio 註解 spacingLeft 16→24(annotation_2 括號深度大於 SVG 的 12px)、note 寬 150→160 保 11 字/行 |
 | 20260716.03 | 2026-07-16 | 【關連錨定到順序流+註解文字疊線修復】(使用者實案:註解應說明「符合→否」分支線而非閘道;文字疊在括號線上)①assoc 端點支援 tuple ("流程來源","流程目標") 錨定到該順序流最長段中點——_flow_anchor 取錨點、_assoc_route_flowref 正交走線、放置夥伴取流程來源節點;.drawio 輸出原生線連線(target=邊 cell id,emit_edge 非節點端點跳過 port 釘選)、.bpmn association ref 該 sequenceFlow id、SVG 畫至錨點 ②SVG 註解文字起點 x+8→x+16,移出開口括號(0~12px)不再疊線;conventions 圖例表新增「關連錨定到線」列 |
 | 20260716.02 | 2026-07-16 | 【註解溢出泳道修復】(使用者 draw.io 實見:註解文字一半在泳道外).drawio 註解樣式原用 labelPosition=right 把文字掛在幾何框右側外部——框外標籤不算幾何、逃過鐵則②/壓線檢核卻實際溢出泳道。修二處:①註解標籤改收框內(align=left+spacingLeft=16+whiteSpace=wrap,移除 labelPosition=right)②node_size 的 note 高度隨字數自動加高(11 字/行、14px 行高,下限 44),SVG/drawio/檢核三方同一幾何。實測 28 字註解 150×58 完整收在泳道內 |
 | 20260716.01 | 2026-07-16 | 【版號子目錄存檔】(依使用者指示:各版產出勿混在同一資料夾)①emit/emit_multi——5 個帶版號交付檔改存 `outdir/{版號}/`(自動建目錄;outdir 已是該版號目錄時不重複巢套),跨版累積的 `_版本記錄.md` 仍留 outdir 上層 ②validate_bpmn——資料夾掃描改遞迴(`**`)涵蓋版號子目錄;交付完整性的版本記錄表查找相容「同層或上一層」③workflow.md 交付物節載明新目錄佈局。另修 bpmn_builder `_place_artifacts` 泳道全滿備援分支 NameError(`li` 未定義→`n["lane"]`,單泳道掛 3 工件實案觸發) |

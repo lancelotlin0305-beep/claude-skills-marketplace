@@ -125,7 +125,7 @@ def node_size(t, name=""):
         # 文字註解(開口括號):高度隨字數自動加高(11 字/行、14px 行高),
         # 文字必須收在幾何框內——框外標籤會溢出泳道且逃過幾何檢核(20260716.02)
         lines = max(1, -(-len(name) // 11))
-        return 150, max(44, lines * 14 + 16)
+        return 160, max(44, lines * 14 + 16)   # 寬 160:24px 內距後仍容 11 字/行
     return TASK_W, TASK_H
 
 
@@ -758,7 +758,12 @@ def _check_placed(x):
                           ov.get(fid) or
                           waypoints(proc.nodes[s], proc.nodes[tg], rt), "flow"))
         for aid, s, tg, lab in proc.assocs:
-            if s in proc.nodes and tg in proc.nodes:
+            if _is_flowref(s) or _is_flowref(tg):
+                nid = tg if _is_flowref(s) else s
+                if nid in proc.nodes:   # 錨定線也納入鐵則檢核(20260716.04)
+                    edges.append((nid, nid,
+                                  assoc_waypoints(proc, s, tg), "assoc"))
+            elif s in proc.nodes and tg in proc.nodes:
                 edges.append((s, tg, assoc_waypoints(proc, s, tg), "assoc"))
     for mid, s, tg, lab in mflows:
         if s in allnodes and tg in allnodes:
@@ -2133,23 +2138,55 @@ def _flowref_partner(spec):
 
 
 def _assoc_route_flowref(proc, node_id, spec):
-    """節點 ↔ 順序流錨定點的正交走線(節點側取面向錨點的側邊中點)。"""
-    _fid_, (ax, ay) = _flow_anchor(proc, spec)
+    """節點 ↔ 順序流錨定的正交走線(20260716.04 候選評分版):
+    錨點候選=該順序流每一線段的 25%/50%/75% 點;進線方向與線段垂直
+    (沿線進入會與順序流本身重合);節點側四邊中點皆為候選。
+    評分=穿越其他節點×20+轉折+長度/1000,取最少者——鐵則③不可穿節點。"""
+    s_, t_ = spec[5:].split(">", 1)
+    ov = getattr(proc, "wps_override", {})
+    wps_f = None
+    for fid, fs, ft, _l, rt in proc.flows:
+        if fs == s_ and ft == t_:
+            wps_f = ov.get(fid) or waypoints(proc.nodes[fs],
+                                             proc.nodes[ft], rt)
+            break
+    if wps_f is None:
+        raise ValueError(f"assoc 錨定的順序流不存在:{spec}")
     S = proc.nodes[node_id]
-    if ax >= S["x"] + S["w"]:
-        sp = (S["x"] + S["w"], S["y"] + S["h"] / 2)
-    elif ax <= S["x"]:
-        sp = (S["x"], S["y"] + S["h"] / 2)
-    else:
-        sp = (S["x"] + S["w"] / 2,
-              S["y"] if ay < S["y"] else S["y"] + S["h"])
-    wps = [sp]
-    if abs(sp[0] - ax) > 1 and abs(sp[1] - ay) > 1:
-        wps.append((ax, sp[1]))
-    elif abs(sp[1] - ay) <= 1 and abs(sp[0] - ax) <= 1:
-        pass
-    wps.append((ax, ay))
-    return wps
+    obstacles = [n for k, n in proc.nodes.items()
+                 if k != node_id and n.get("x") is not None]
+    ports = [(S["x"], S["y"] + S["h"] / 2), (S["x"] + S["w"], S["y"] + S["h"] / 2),
+             (S["x"] + S["w"] / 2, S["y"]), (S["x"] + S["w"] / 2, S["y"] + S["h"])]
+    best = None
+    for i in range(len(wps_f) - 1):
+        (x1, y1), (x2, y2) = wps_f[i], wps_f[i + 1]
+        seg_vert = abs(x1 - x2) < 1e-6
+        if abs(x1 - x2) + abs(y1 - y2) < 24:      # 過短線段不錨定
+            continue
+        for f in (0.5, 0.25, 0.75):
+            ax, ay = x1 + (x2 - x1) * f, y1 + (y2 - y1) * f
+            for sp in ports:
+                # 進線末段須垂直於流程線段
+                if seg_vert:
+                    cand = [sp, (sp[0], ay), (ax, ay)]
+                else:
+                    cand = [sp, (ax, sp[1]), (ax, ay)]
+                cand = [p for j, p in enumerate(cand)
+                        if j == 0 or abs(p[0] - cand[j - 1][0]) > 1e-6
+                        or abs(p[1] - cand[j - 1][1]) > 1e-6]
+                if len(cand) < 2:
+                    continue
+                hits = 0
+                for a, b in zip(cand, cand[1:]):
+                    for n in obstacles:
+                        if _seg_hits_box_b(a, b, n, pad=2):
+                            hits += 1
+                length = sum(abs(b[0] - a[0]) + abs(b[1] - a[1])
+                             for a, b in zip(cand, cand[1:]))
+                score = hits * 20 + (len(cand) - 2) + length / 1000
+                if best is None or score < best[0]:
+                    best = (score, cand)
+    return best[1]
 
 
 def _route_assocs(proc):
@@ -2951,8 +2988,10 @@ def _drawio_page_xml(x, page_id):
                 ast = STYLE["artifact"]
                 # 標籤收在幾何框內(勿用 labelPosition=right:框外標籤會
                 # 溢出泳道且逃過幾何檢核,20260716.02 使用者實案)
+                # spacingLeft=24:annotation_2 的括號深度大於 SVG 版(12px),
+                # 16px 內距仍疊線(20260716.04 使用者實見)
                 style = ("shape=mxgraph.flowchart.annotation_2;html=1;align=left;"
-                         "verticalAlign=middle;spacingLeft=16;spacingRight=4;"
+                         "verticalAlign=middle;spacingLeft=24;spacingRight=4;"
                          "whiteSpace=wrap;fontSize=11;"
                          + "strokeColor=%s;fillColor=none;" % ast["stroke"])
             elif t == "database":
