@@ -1,7 +1,7 @@
 {
   "name": "bpmn-flow-builder",
   "description": "把工作流程說明、訪談/會議記錄中談到的流程、或一張現有操作流程圖，轉成符合 BPMN 規則的直式流程圖，每張圖固定輸出 6 檔，支援迭代進版",
-  "version": "20260710.16",
+  "version": "20260716.01",
   "author": {
     "name": "Lancelot Lin",
     "email": "lancelot.lin0305@gmail.com"

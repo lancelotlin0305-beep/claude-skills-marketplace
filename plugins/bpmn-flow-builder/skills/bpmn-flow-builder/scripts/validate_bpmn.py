@@ -52,8 +52,9 @@ def files(args):
     out = []
     for a in (args or ['.']):
         if os.path.isdir(a):
-            out += sorted(glob.glob(os.path.join(a, '*.bpmn')))
-            out += sorted(glob.glob(os.path.join(a, '*.drawio')))
+            # 版號子目錄佈局(20260716.01):遞迴涵蓋 outdir/{版號}/ 下的圖檔
+            out += sorted(glob.glob(os.path.join(a, '**', '*.bpmn'), recursive=True))
+            out += sorted(glob.glob(os.path.join(a, '**', '*.drawio'), recursive=True))
         else:
             out.append(a)
     return out
@@ -324,7 +325,7 @@ def svg_files(args):
     out = []
     for a in args:
         if os.path.isdir(a):
-            out += sorted(glob.glob(os.path.join(a, '*.svg')))
+            out += sorted(glob.glob(os.path.join(a, '**', '*.svg'), recursive=True))
         elif a.endswith('.svg'):
             out.append(a)
     return out
@@ -349,9 +350,12 @@ def check_deliverables(diagram_path):
             iss.append(f"缺交付物:{os.path.basename(base + suf)}")
     stem = os.path.basename(base)
     xid = stem.rsplit('_V', 1)[0] if '_V' in stem else stem
-    log = os.path.join(os.path.dirname(diagram_path) or '.', xid + '_版本記錄.md')
-    if not os.path.exists(log):
-        iss.append(f"缺版本記錄表:{os.path.basename(log)}")
+    d = os.path.dirname(diagram_path) or '.'
+    # 版號子目錄佈局(20260716.01):版本記錄表在圖檔同層或上一層皆可
+    logs = [os.path.join(d, xid + '_版本記錄.md'),
+            os.path.join(os.path.dirname(os.path.abspath(d)), xid + '_版本記錄.md')]
+    if not any(os.path.exists(l) for l in logs):
+        iss.append(f"缺版本記錄表:{xid}_版本記錄.md")
     return iss
 
 

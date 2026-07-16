@@ -2253,7 +2253,7 @@ def _place_artifacts(p, depth, sub):
             r = max(rr for _l, _s, rr in occupied) + 1
             depth[k] = r; sub[k] = 0
             n["row"], n["sub"] = r, 0
-            occupied.add((li, 0, r))
+            occupied.add((n["lane"], 0, r))
 
 
 def _ensure(x):
@@ -3790,7 +3790,12 @@ def emit_multi(diagrams, project, outdir=".", version="V01.00", src=None,
     if dup:
         raise ValueError("多頁 .drawio 節點 id 跨圖重複,請各圖 id 加圖前綴"
                          "(如 a1_/a2_)後重跑:" + "、".join(dup[:8]))
-    base = os.path.join(outdir, f"{project}_{version}")
+    # 版號子目錄(20260716.01):帶版號檔存 outdir/{version}/,
+    # 專案版本記錄表留在 outdir 上層;outdir 已是該版號目錄時不重複巢套。
+    verdir = outdir if os.path.basename(os.path.normpath(outdir)) == version \
+        else os.path.join(outdir, version)
+    os.makedirs(verdir, exist_ok=True)
+    base = os.path.join(verdir, f"{project}_{version}")
     for x in diagrams:
         x.version = version
     rendered = _render_pages(diagrams)     # 逐圖串行產出
@@ -3814,7 +3819,7 @@ def emit_multi(diagrams, project, outdir=".", version="V01.00", src=None,
     results = {}
     for _i, stem, _name, _page, svg, _svg_np, md, sem, problems, secs \
             in rendered:
-        dbase = os.path.join(outdir, f"{stem}_{version}")
+        dbase = os.path.join(verdir, f"{stem}_{version}")
         open(dbase + ".svg", "w", encoding="utf-8").write(svg)
         open(dbase + ".md", "w", encoding="utf-8").write(md)
         results[stem] = sem + problems
@@ -3840,7 +3845,12 @@ def emit(x, outdir=".", viewer=True, src=None, fmt="drawio",
         raise ValueError(f"fmt 只能是 'bpmn' 或 'drawio',收到 {fmt!r}")
     t0 = time.monotonic()
     stem = x.cid if isinstance(x, Collab) else x.pid   # 檔名用(可中文),非 XML xid
-    base = os.path.join(outdir, stem + "_" + x.version)
+    # 版號子目錄(20260716.01):5 個帶版號檔存 outdir/{version}/,
+    # 版本記錄表(跨版累積)留在 outdir 上層;outdir 已是該版號目錄時不重複巢套。
+    verdir = outdir if os.path.basename(os.path.normpath(outdir)) == x.version \
+        else os.path.join(outdir, x.version)
+    os.makedirs(verdir, exist_ok=True)
+    base = os.path.join(verdir, stem + "_" + x.version)
     if fmt == "drawio":
         open(base + ".drawio", "w", encoding="utf-8").write(build_drawio(x))
     else:
