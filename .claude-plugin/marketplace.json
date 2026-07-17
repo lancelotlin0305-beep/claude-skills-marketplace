@@ -11,6 +11,11 @@
       "description": "把流程說明、會議記錄或現有流程圖轉成符合 BPMN 規則的直式流程圖，固定輸出 6 檔並支援迭代進版"
     },
     {
+      "name": "rfp-work-breakdown",
+      "source": "./plugins/rfp-work-breakdown",
+      "description": "從 RFP / 需求文件拆解工項，產出工項拆解 MD（含功能架構總覽）+ 功能架構圖 SVG，有疑義另產待釐清清單"
+    },
+    {
       "name": "drawio-skill",
       "source": "./plugins/drawio-skill",
       "description": "產生 .drawio XML 並以 draw.io desktop CLI 匯出的通用圖表 skill（架構圖、UML、ER、流程圖等）"

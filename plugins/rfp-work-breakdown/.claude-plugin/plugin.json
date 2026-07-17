@@ -1,0 +1,9 @@
+{
+  "name": "rfp-work-breakdown",
+  "description": "從 RFP / 需求文件拆解工項，產出工項拆解 MD（含功能架構總覽）+ 功能架構圖 SVG，有疑義另產待釐清清單",
+  "version": "20260702.01",
+  "author": {
+    "name": "Lancelot Lin",
+    "email": "lancelot.lin0305@gmail.com"
+  }
+}
