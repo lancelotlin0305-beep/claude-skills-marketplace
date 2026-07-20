@@ -4045,9 +4045,24 @@ def _render_pages(diagrams):
     return [_emit_one_page(x, i) for i, x in enumerate(diagrams)]
 
 
+def _git_mode(outdir):
+    """outdir 位於 git 工作樹內(自身或任一上層有 .git)→ True。
+    git 版控模式(20260720.01):不建版號子目錄、交付檔名不帶版號,
+    每次迭代原地覆寫同名檔,版本演進交由 git 控管;
+    版本記錄表與檔內標題版號照舊(變更摘要仍累積、圖面仍標示版本)。"""
+    d = os.path.abspath(outdir)
+    while True:
+        if os.path.exists(os.path.join(d, ".git")):
+            return True
+        nd = os.path.dirname(d)
+        if nd == d:
+            return False
+        d = nd
+
+
 def emit_multi(diagrams, project, outdir=".", version="V01.00", src=None,
                change=None, change_kind=None, change_source=None,
-               xml=True, svg=True, viewer=True):
+               xml=True, svg=True, viewer=True, git=None):
     """多張流程圖 → 專案級交付(單一多頁 .drawio):
     必產:每張圖各自 {圖名}_{version}.md、{project}_{version}_流程定義.py
       (src=__file__ 複製)、{project}_版本記錄.md(專案層級,任一圖結構
@@ -4056,6 +4071,8 @@ def emit_multi(diagrams, project, outdir=".", version="V01.00", src=None,
       {project}_{version}.drawio(多頁,每張圖一個頁籤)、各圖 .svg、
       {project}_{version}_檢視器.html(多頁檢視器,頁籤切換/縮放/搜尋)。
     版號以專案為準:所有圖與檔案共用同一 version。回傳各圖問題清單 dict。
+    git 版控模式:git=None 時自動偵測 outdir 是否在 git 工作樹內(可傳
+    True/False 強制);git 模式下不建版號子目錄、檔名不帶版號(原地覆寫)。
     """
     if not diagrams:
         raise ValueError("沒有任何流程圖;請至少提供一個 Proc / Collab。")
@@ -4075,10 +4092,16 @@ def emit_multi(diagrams, project, outdir=".", version="V01.00", src=None,
                          "(如 a1_/a2_)後重跑:" + "、".join(dup[:8]))
     # 版號子目錄(20260716.01):帶版號檔存 outdir/{version}/,
     # 專案版本記錄表留在 outdir 上層;outdir 已是該版號目錄時不重複巢套。
-    verdir = outdir if os.path.basename(os.path.normpath(outdir)) == version \
-        else os.path.join(outdir, version)
+    # git 版控模式(20260720.01):不建版號子目錄、檔名不帶版號,原地覆寫。
+    use_git = _git_mode(outdir) if git is None else bool(git)
+    if use_git:
+        verdir = outdir
+        print("git 版控模式:檔名不帶版號、不建版號子目錄(版本演進由 git 控管)")
+    else:
+        verdir = outdir if os.path.basename(os.path.normpath(outdir)) == version \
+            else os.path.join(outdir, version)
     os.makedirs(verdir, exist_ok=True)
-    base = os.path.join(verdir, f"{project}_{version}")
+    base = os.path.join(verdir, project if use_git else f"{project}_{version}")
     for x in diagrams:
         x.version = version
     rendered = _render_pages(diagrams)     # 逐圖串行產出
@@ -4104,15 +4127,16 @@ def emit_multi(diagrams, project, outdir=".", version="V01.00", src=None,
     results = {}
     for _i, stem, _name, _page, svg_s, _svg_np, md, sem, problems, secs \
             in rendered:
-        dbase = os.path.join(verdir, f"{stem}_{version}")
+        dbase = os.path.join(verdir, stem if use_git else f"{stem}_{version}")
         if svg:                       # svg=布林開關,svg_s=該頁 SVG 字串
             open(dbase + ".svg", "w", encoding="utf-8").write(svg_s)
         open(dbase + ".md", "w", encoding="utf-8").write(md)
         results[stem] = sem + problems
         _print_page_report(f"page: {stem}", sem, problems, secs,
                            hops=svg_s.count("A5,5 "))
-    parts = [p for p, on in ((f"{project}_{version}.drawio(共 "
-                              f"{len(diagrams)} 頁)", xml),
+    parts = [p for p, on in (((f"{project}.drawio" if use_git
+                               else f"{project}_{version}.drawio")
+                              + f"(共 {len(diagrams)} 頁)", xml),
                              ("多頁檢視器", viewer), ("各圖 SVG", svg))
              if on] + ["各圖 MD"]
     print("written:", " + ".join(parts))
@@ -4121,7 +4145,7 @@ def emit_multi(diagrams, project, outdir=".", version="V01.00", src=None,
 
 def emit(x, outdir=".", viewer=True, src=None, fmt="drawio",
          change=None, change_kind=None, change_source=None,
-         xml=True, svg=True):
+         xml=True, svg=True, git=None):
     """產出交付物(必產 3 檔 + 可選 3 檔,20260716.09):
     必產:
       1) .md 流程說明
@@ -4134,6 +4158,8 @@ def emit(x, outdir=".", viewer=True, src=None, fmt="drawio",
       5) .svg(svg=True)
       6) _檢視器.html(viewer=True)
     語意/版面檢核(check_semantics/check_layout)不論開關一律執行。
+    git 版控模式:git=None 時自動偵測 outdir 是否在 git 工作樹內(可傳
+    True/False 強制);git 模式下不建版號子目錄、檔名不帶版號(原地覆寫)。
     """
     if fmt not in ("bpmn", "drawio"):
         raise ValueError(f"fmt 只能是 'bpmn' 或 'drawio',收到 {fmt!r}")
@@ -4141,10 +4167,16 @@ def emit(x, outdir=".", viewer=True, src=None, fmt="drawio",
     stem = x.cid if isinstance(x, Collab) else x.pid   # 檔名用(可中文),非 XML xid
     # 版號子目錄(20260716.01):5 個帶版號檔存 outdir/{version}/,
     # 版本記錄表(跨版累積)留在 outdir 上層;outdir 已是該版號目錄時不重複巢套。
-    verdir = outdir if os.path.basename(os.path.normpath(outdir)) == x.version \
-        else os.path.join(outdir, x.version)
+    # git 版控模式(20260720.01):不建版號子目錄、檔名不帶版號,原地覆寫。
+    use_git = _git_mode(outdir) if git is None else bool(git)
+    if use_git:
+        verdir = outdir
+        print("git 版控模式:檔名不帶版號、不建版號子目錄(版本演進由 git 控管)")
+    else:
+        verdir = outdir if os.path.basename(os.path.normpath(outdir)) == x.version \
+            else os.path.join(outdir, x.version)
     os.makedirs(verdir, exist_ok=True)
-    base = os.path.join(verdir, stem + "_" + x.version)
+    base = os.path.join(verdir, stem if use_git else stem + "_" + x.version)
     if xml:
         if fmt == "drawio":
             open(base + ".drawio", "w", encoding="utf-8").write(build_drawio(x))
@@ -4167,7 +4199,7 @@ def emit(x, outdir=".", viewer=True, src=None, fmt="drawio",
         elif os.path.abspath(src) != os.path.abspath(dst):
             shutil.copyfile(src, dst)
     _write_changelog(x, outdir, change, change_kind, change_source)
-    name = stem + "_" + x.version
+    name = stem if use_git else stem + "_" + x.version
     _print_page_report(f"written: {name}", sem, problems,
                        time.monotonic() - t0, hops=svg_str.count("A5,5 "))
     return sem + problems
