@@ -6,13 +6,13 @@
   },
   "plugins": [
     {
-      "name": "bpmn-flow-builder",
-      "source": "./plugins/bpmn-flow-builder",
+      "name": "geo-bpmn-flow-builder",
+      "source": "./plugins/geo-bpmn-flow-builder",
       "description": "把流程說明、會議記錄或現有流程圖轉成符合 BPMN 規則的直式流程圖，固定輸出 6 檔並支援迭代進版"
     },
     {
-      "name": "rfp-work-breakdown",
-      "source": "./plugins/rfp-work-breakdown",
+      "name": "geo-rfp-work-breakdown",
+      "source": "./plugins/geo-rfp-work-breakdown",
       "description": "從 RFP / 需求文件拆解工項，產出工項拆解 MD（含功能架構總覽）+ 功能架構圖 SVG，有疑義另產待釐清清單"
     },
     {

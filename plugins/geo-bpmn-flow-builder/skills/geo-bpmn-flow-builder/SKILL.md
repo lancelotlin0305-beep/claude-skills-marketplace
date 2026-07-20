@@ -1,5 +1,5 @@
 ---
-name: bpmn-flow-builder
+name: geo-bpmn-flow-builder
 description: >-
   把工作流程說明、訪談/會議記錄中談到的流程、或一張現有操作流程圖,轉成符合 BPMN 規則的
   直式流程圖。必產 3 檔:流程說明 MD、流程定義 .py、版本記錄表;可選 3 檔(首次產出時

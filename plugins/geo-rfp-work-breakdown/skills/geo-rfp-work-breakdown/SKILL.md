@@ -1,5 +1,5 @@
 ---
-name: rfp-work-breakdown
+name: geo-rfp-work-breakdown
 description: >-
   從 RFP / 需求文件拆解工項,產出「工項拆解 MD(含功能架構總覽)+ 功能架構圖 SVG」(有疑義另產待釐清清單)。
   使用時機:使用者提供 RFP、招標文件、需求規格書、SOW,或說「拆工項」「需求拆解」「產功能架構圖」;

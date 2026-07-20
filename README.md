@@ -6,14 +6,16 @@
 
 | Plugin | 說明 | 來源 |
 |---|---|---|
-| `bpmn-flow-builder` | 流程說明 → BPMN 直式流程圖（6 檔輸出、迭代進版） | 自行維護 |
+| `geo-bpmn-flow-builder` | 流程說明 → BPMN 直式流程圖（6 檔輸出、迭代進版） | 自行維護 |
+| `geo-rfp-work-breakdown` | RFP / 需求文件 → 工項拆解 MD + 功能架構圖 SVG | 自行維護 |
 | `drawio-skill` | 通用 draw.io 圖表產生與匯出 | [Agents365-ai/drawio-skill](https://github.com/Agents365-ai/drawio-skill) |
 
 ## 新電腦安裝（在 Claude Code 內執行）
 
 ```
 /plugin marketplace add <本 repo 的 GitHub URL 或 owner/repo>
-/plugin install bpmn-flow-builder@lancelot-skills
+/plugin install geo-bpmn-flow-builder@lancelot-skills
+/plugin install geo-rfp-work-breakdown@lancelot-skills
 /plugin install drawio-skill@lancelot-skills
 ```
 
