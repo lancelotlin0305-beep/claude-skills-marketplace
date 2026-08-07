@@ -19,6 +19,11 @@
       "name": "drawio-skill",
       "source": "./plugins/drawio-skill",
       "description": "產生 .drawio XML 並以 draw.io desktop CLI 匯出的通用圖表 skill（架構圖、UML、ER、流程圖等）"
+    },
+    {
+      "name": "geo-infographic-style",
+      "source": "./plugins/geo-infographic-style",
+      "description": "依「多色群組卡 × 淺色分層 × 擬 3D」統一風格，將結構化資料繪製成簡報級資訊圖表（SVG 繪製、轉出高解析 PNG），支援 1–5 級畫面豐富度"
     }
   ]
 }

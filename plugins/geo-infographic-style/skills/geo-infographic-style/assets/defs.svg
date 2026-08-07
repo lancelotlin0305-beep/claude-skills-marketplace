@@ -1,0 +1,128 @@
+<!-- 資訊圖表統一風格:基礎 defs(複製進圖檔 <defs> 內使用;{佔位} 依專色替換) -->
+<svg xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 群組帶淺漸層(藍例;其他色相依「頂 97–99% → 底 93–95% 明度」同法) -->
+    <linearGradient id="gBandB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F8FBFF"/><stop offset="1" stop-color="#E3ECFB"/>
+    </linearGradient>
+    <linearGradient id="gBandG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6FCF8"/><stop offset="1" stop-color="#DFF1E8"/>
+    </linearGradient>
+    <linearGradient id="gBandO" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFBF3"/><stop offset="1" stop-color="#F8E9D0"/>
+    </linearGradient>
+    <linearGradient id="gBandP" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FAF7FF"/><stop offset="1" stop-color="#E9E0FA"/>
+    </linearGradient>
+
+    <!-- 子卡標題列漸層(上亮下深) -->
+    <linearGradient id="gHdrB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#628CF2"/><stop offset="0.5" stop-color="#3A5CD4"/><stop offset="1" stop-color="#1E379E"/>
+    </linearGradient>
+    <linearGradient id="gHdrG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#43C481"/><stop offset="0.5" stop-color="#1F9254"/><stop offset="1" stop-color="#115C34"/>
+    </linearGradient>
+    <linearGradient id="gHdrO" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFB552"/><stop offset="0.5" stop-color="#E8890F"/><stop offset="1" stop-color="#B85F00"/>
+    </linearGradient>
+    <linearGradient id="gHdrP" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9C71E8"/><stop offset="0.5" stop-color="#6D3FC0"/><stop offset="1" stop-color="#452092"/>
+    </linearGradient>
+    <linearGradient id="gHdrR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E86075"/><stop offset="0.5" stop-color="#B02036"/><stop offset="1" stop-color="#7E1222"/>
+    </linearGradient>
+    <linearGradient id="gBandT" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6FBF8"/><stop offset="1" stop-color="#E0F0E7"/>
+    </linearGradient>
+    <linearGradient id="gHdrT" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#48B87E"/><stop offset="0.5" stop-color="#2E9E5B"/><stop offset="1" stop-color="#166B3D"/>
+    </linearGradient>
+    <linearGradient id="gHdrN" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7488A6"/><stop offset="0.5" stop-color="#5A6E8C"/><stop offset="1" stop-color="#3E4F6E"/>
+    </linearGradient>
+    <linearGradient id="gHdrY" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C9A24A"/><stop offset="0.5" stop-color="#B08A2E"/><stop offset="1" stop-color="#8A691C"/>
+    </linearGradient>
+
+    <!-- 徽章球面漸層(亮心左上;各色換 stop) -->
+    <radialGradient id="sBlue" cx="0.35" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#6B8CF0"/><stop offset="1" stop-color="#1F3CA6"/>
+    </radialGradient>
+    <radialGradient id="sGreen" cx="0.35" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#4CC981"/><stop offset="1" stop-color="#0F6B3A"/>
+    </radialGradient>
+    <radialGradient id="sOrange" cx="0.35" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#FFC161"/><stop offset="1" stop-color="#C86F04"/>
+    </radialGradient>
+    <radialGradient id="sPurple" cx="0.35" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#A47BF0"/><stop offset="1" stop-color="#4E27A0"/>
+    </radialGradient>
+    <radialGradient id="sRed" cx="0.35" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#EE6F84"/><stop offset="1" stop-color="#961A2B"/>
+    </radialGradient>
+    <radialGradient id="sTeal" cx="0.35" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#5FC98F"/><stop offset="1" stop-color="#166B3D"/>
+    </radialGradient>
+
+    <!-- 流程型:趨勢楔形 -->
+    <linearGradient id="gWedge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/><stop offset="1" stop-color="#CFE3E8"/>
+    </linearGradient>
+
+    <!-- 陰影:卡片 / 標題列 / 插圖物件 -->
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="165%">
+      <feDropShadow dx="0" dy="9" stdDeviation="12" flood-color="#1B2A6B" flood-opacity="0.14"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1B2A6B" flood-opacity="0.10"/>
+    </filter>
+    <filter id="card2" x="-20%" y="-25%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#1B2A6B" flood-opacity="0.13"/>
+    </filter>
+    <filter id="row" x="-20%" y="-40%" width="140%" height="200%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#1B2A6B" flood-opacity="0.10"/>
+    </filter>
+    <filter id="hdr" x="-20%" y="-40%" width="140%" height="200%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#14213D" flood-opacity="0.26"/>
+    </filter>
+    <filter id="obj" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#14213D" flood-opacity="0.28"/>
+    </filter>
+
+    <!-- 勾選圓(currentColor 帶入各卡主色) -->
+    <symbol id="chk" viewBox="0 0 20 20">
+      <circle cx="10" cy="10" r="10" fill="currentColor"/>
+      <path d="M5.5 10.6l3 3 6-6.6" stroke="#fff" stroke-width="2.4" fill="none"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <!-- 數據語彙:人形(pictogram)與單位方塊(currentColor 帶色;未達成用 #D9DDE3) -->
+    <symbol id="man" viewBox="0 0 20 32">
+      <circle cx="10" cy="5" r="4.5" fill="currentColor"/>
+      <path d="M10 11c-4.4 0-7 3-7 7.4V31h4.2v-9h1.6v9h2.4v-9h1.6v9H17V18.4C17 14 14.4 11 10 11z" fill="currentColor"/>
+    </symbol>
+    <symbol id="unit" viewBox="0 0 20 20"><rect width="20" height="20" rx="5" fill="currentColor"/></symbol>
+    <!-- 預留時鐘(color:#A7B0BF) -->
+    <symbol id="clk" viewBox="0 0 20 20">
+      <circle cx="10" cy="10" r="8.5" fill="#FFFFFF" stroke="currentColor" stroke-width="2"/>
+      <path d="M10 5.8V10l3.2 2.2" stroke="currentColor" stroke-width="2" fill="none"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <!-- 補齊八色:淺帶(紅/藍灰/棕金)、球面(藍灰/棕金)、灰三段(整卡預留) -->
+    <linearGradient id="gBandR" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF9FA"/><stop offset="1" stop-color="#FBE9EC"/>
+    </linearGradient>
+    <linearGradient id="gBandN" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6F8FB"/><stop offset="1" stop-color="#E3E9F1"/>
+    </linearGradient>
+    <linearGradient id="gBandY" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBF8F0"/><stop offset="1" stop-color="#F1E6C8"/>
+    </linearGradient>
+    <radialGradient id="sNavy" cx="0.35" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#8298B8"/><stop offset="1" stop-color="#3E4F6E"/>
+    </radialGradient>
+    <radialGradient id="sGold" cx="0.35" cy="0.3" r="0.9">
+      <stop offset="0" stop-color="#D8B155"/><stop offset="1" stop-color="#8A691C"/>
+    </radialGradient>
+    <linearGradient id="gHdrGray" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#A2B3A8"/><stop offset="0.5" stop-color="#7F9186"/><stop offset="1" stop-color="#5F7268"/>
+    </linearGradient>
+  </defs>
+</svg>
