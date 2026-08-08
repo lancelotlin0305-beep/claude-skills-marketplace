@@ -486,8 +486,20 @@ def waypoints(s, t, route):
         # 20260710.14:多條回線各佔一軌(+2×LINE_GAP/軌)——原通道 x 寫死
         # +14,兩條以上 backLoop 必然長距完全共線(使用者標紅實證:
         # 流標/廢標雙回線共線 720px);軌位由 _assign_backloop_tracks 指派。
+        # 20260809.04:通道就近化——原一律貼 pool 內緣,lane1+ 的迴圈要橫跨
+        # 左側所有泳道到框緣(又遠又亂)。改置於「來源泳道左緣外側的相鄰
+        # 空隙」(近節點、落在與左鄰泳道之間的空檔),多回線逐軌向左外移;
+        # lane0(無左鄰)沿用 pool 內緣、逐軌向右內移。
         ox = s.get("ox", POOL_X)
-        cx = ox + POOL_HEADER_W + 14 + s.get("_blt", 0) * 2 * LINE_GAP
+        pool_left = ox + POOL_HEADER_W + 14
+        blt = s.get("_blt", 0)
+        ln = min(s["lane"], t["lane"])
+        en = s if s["lane"] == ln else t
+        lane_left = en.get("_lane_left", ox + POOL_HEADER_W + ln * LANE_W)
+        if ln > 0 and lane_left - 20 > pool_left:
+            cx = max(lane_left - 20 - blt * 2 * LINE_GAP, pool_left)
+        else:
+            cx = pool_left + blt * 2 * LINE_GAP
         return [ps["left"], (cx, ps["left"][1]), (cx, pt["left"][1]), pt["left"]]
     # auto:正交折線
     return _orth_down(ps, pt)
@@ -1443,11 +1455,14 @@ def _assign_backloop_tracks(p):
         if rt == "backLoop" or (rt == "auto" and T["row"] < S["row"]
                                 and not S.get("attach")):
             loops.append((T["row"], S["row"], fid, s))
-    # 深源佔外軌(20260710.15):同目標多回線要同心巢狀不交叉,最深來源
-    # 須佔最左(外)軌+最上進點(進點次序由 _spread_ports 依通道 x 自動
-    # 對應);故以 -S.row 排序——原「淺源佔外軌」實測外軌出線橫穿內軌。
-    for i, (_tr, _nsr, _fid, s) in enumerate(
-            sorted((tr, -sr, fid, s) for tr, sr, fid, s in loops)):
+    # 跨度大者佔外軌(20260809.04):同心巢狀不交叉的充要條件是「列跨度較大
+    # 的回線在外圈」——外圈才能包住內圈的接頭而不相穿。以列跨度(hi-lo)升冪
+    # 排序、逐一給軌(軌號越大越外/越左),跨度小者得內軌、跨度大者得外軌。
+    # 此規則涵蓋原「同目標深源佔外軌(20260710.15)」:同目標時跨度即來源深度,
+    # 深源=跨度大=外軌,結果一致;並額外正確處理不同目標的巢狀回線。
+    keyed = [(max(tr, sr) - min(tr, sr), min(tr, sr), fid, s)
+             for tr, sr, fid, s in loops]
+    for i, (_w, _lo, _fid, s) in enumerate(sorted(keyed)):
         p.nodes[s]["_blt"] = i
 
 
@@ -2118,7 +2133,15 @@ def _spread_ports(p):
             # 巢狀時「外軌(更遠通道)配上位進點」才不交叉;原按 y 排序
             # 在初始同 y 時退化為按 fid,外軌常拿到下位進點而與內軌交叉。
             # 左側:x 越小(越外)越先(上位);右側鏡像。
-            return q[0] if abs(kx - n["x"]) <= 2 else -q[0]
+            base = q[0] if abs(kx - n["x"]) <= 2 else -q[0]
+            # 方向翻轉(20260809.04):上面規則假設垂直段在接點「下方」(節點為
+            # 目標、回線由下往上進);若垂直段在接點「上方」(節點為來源、線往上
+            # 離開,或同時混有進/出線),巢狀關係相反——外軌須配「下位」接點才
+            # 不交叉。以對向端 y 判斷:對向端在本節點上方 → 垂直段在上 → 翻轉。
+            other = w_[-1] if idx_ == 0 else w_[0]
+            if other[1] < ky - 2:
+                return -base
+            return base
         members = sorted(members, key=lambda m: (_away(m), m[0]))
         anchors = [m for m in members if len(edges[m[0]]) == 2]
         if len(anchors) > 1:
