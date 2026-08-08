@@ -1562,11 +1562,13 @@ def _assign_side_channels(p):
     不超過泳道邊緣;**僅在偵測到障礙需繞時才收緊**(無障礙維持泳道邊緣,
     不動既有版面)。結果以 (route, 目標id) 為鍵存來源節點 `_near_cx`,
     供 waypoints() 覆寫通道 x。"""
-    MARGIN = LINE_GAP + 4
     for _fid, s, tg, _lab, _rt in p.flows:
         S, T = p.nodes.get(s), p.nodes.get(tg)
         if not S or not T or S.get("x") is None or T.get("x") is None:
             continue
+        # 清距:基礎線距 + 帶標籤額外留白(避免標籤貼節點) + 舒適下限,
+        # 讓通道不至於貼著障礙節點(20260809.03 依使用者回饋:16px 太近)
+        MARGIN = max(36, LINE_GAP + 4 + (24 if _lab else 0))
         y0 = min(S["y"], T["y"]); y1 = max(S["y"] + S["h"], T["y"] + T["h"])
         obst = [n for nid, n in p.nodes.items()
                 if nid not in (s, tg) and n.get("x") is not None
