@@ -451,11 +451,14 @@ def waypoints(s, t, route):
         # 側通道繞行:同泳道跨多列的跳層連線專用——出側邊 → 走泳道邊緣通道 → 進側邊,
         # 不會像 enterRight 從欄中央下切而穿過中間節點。
         ox = s.get("ox", POOL_X)
+        near = s.get("_near_cx", {})
         if route == "sideRight":
             ln = max(s["lane"], t["lane"])
             edge_n = s if s["lane"] == ln else t
             cx = edge_n.get("_lane_right",
                             ox + POOL_HEADER_W + (ln + 1) * LANE_W) - 14
+            # 就近側通道(20260809.02):有障礙需繞時貼障礙外緣,否則維持邊緣
+            cx = near.get(("sideRight", t["id"]), cx)
             sp, tp = ps["right"], pt["right"]
         else:
             ln = min(s["lane"], t["lane"])
@@ -465,6 +468,7 @@ def waypoints(s, t, route):
             cx = edge_n.get("_lane_left",
                             ox + POOL_HEADER_W + ln * LANE_W) + 14 \
                  + LINE_GAP * edge_n.get("_bndL", 0)
+            cx = near.get(("sideLeft", t["id"]), cx)
             sp, tp = ps["left"], pt["left"]
         return [sp, (cx, sp[1]), (cx, tp[1]), tp]
     if route == "outLeft":
@@ -1551,9 +1555,50 @@ def _er_ok(S, T):
     return S["x"] + S["w"] / 2 > T["x"] + T["w"] + 4
 
 
+def _assign_side_channels(p):
+    """側通道就近化(20260809.02):sideRight/sideLeft 原一律貼泳道邊緣走,
+    導致只需繞過一個中間節點的分支/跳段線也被推到泳道邊緣(繞太遠、標籤
+    貼分區線)。改為貼「擋在來源↔目標之間的節點外緣 + 邊距」,並 clamp
+    不超過泳道邊緣;**僅在偵測到障礙需繞時才收緊**(無障礙維持泳道邊緣,
+    不動既有版面)。結果以 (route, 目標id) 為鍵存來源節點 `_near_cx`,
+    供 waypoints() 覆寫通道 x。"""
+    MARGIN = LINE_GAP + 4
+    for _fid, s, tg, _lab, _rt in p.flows:
+        S, T = p.nodes.get(s), p.nodes.get(tg)
+        if not S or not T or S.get("x") is None or T.get("x") is None:
+            continue
+        y0 = min(S["y"], T["y"]); y1 = max(S["y"] + S["h"], T["y"] + T["h"])
+        obst = [n for nid, n in p.nodes.items()
+                if nid not in (s, tg) and n.get("x") is not None
+                and n["y"] < y1 and n["y"] + n["h"] > y0]
+        store = S.setdefault("_near_cx", {})
+        ox = S.get("ox", POOL_X)
+        # 右側近通道
+        ln = max(S["lane"], T["lane"]); en = S if S["lane"] == ln else T
+        lane_r = en.get("_lane_right", ox + POOL_HEADER_W + (ln + 1) * LANE_W)
+        base_r = max(ports(S)["right"][0], ports(T)["right"][0])
+        blk = [n["x"] + n["w"] for n in obst
+               if n["x"] + n["w"] > base_r and n["x"] < lane_r - 14]
+        if blk:
+            cx = min(max(blk) + MARGIN, lane_r - 14)
+            if cx > base_r + 12:
+                store[("sideRight", tg)] = cx
+        # 左側近通道
+        ln = min(S["lane"], T["lane"]); en = S if S["lane"] == ln else T
+        lane_l = en.get("_lane_left", ox + POOL_HEADER_W + ln * LANE_W)
+        base_l = min(ports(S)["left"][0], ports(T)["left"][0])
+        blk = [n["x"] for n in obst
+               if n["x"] < base_l and n["x"] + n["w"] > lane_l + 14]
+        if blk:
+            cx = max(min(blk) - MARGIN, lane_l + 14)
+            if cx < base_l - 12:
+                store[("sideLeft", tg)] = cx
+
+
 def _auto_routes(p):
     _stash_bnd_tracks(p)
     _assign_backloop_tracks(p)
+    _assign_side_channels(p)
 
     def blocked(s, t):
         if s["lane"] != t["lane"]:
