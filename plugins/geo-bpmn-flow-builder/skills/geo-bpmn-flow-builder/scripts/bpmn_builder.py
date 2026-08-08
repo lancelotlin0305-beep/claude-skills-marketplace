@@ -1638,7 +1638,19 @@ def _auto_routes(p):
             # 會引發全域路線組合漂移(同分換序),反而不穩定。
             r = "bndSide"
         elif T["row"] < S["row"]:
-            r = "backLoop"
+            # 回頭(迴圈)邊:就近優先(20260809 依使用者回饋)——
+            # 先試泳道邊緣近通道 sideLeft/sideRight,僅在與節點/其他
+            # 既定線重疊時才退回 pool 左緣大通道 backLoop。以
+            # (衝突數, 路徑長)取最小:乾淨時近通道路徑較短必勝,
+            # 有重疊時衝突較少者(通常為繞遠的 backLoop)勝出。
+            cand = []
+            for rr in ("sideLeft", "sideRight", "backLoop"):
+                w = waypoints(S, T, rr)
+                plen = sum(abs(w[k + 1][0] - w[k][0])
+                           + abs(w[k + 1][1] - w[k][1])
+                           for k in range(len(w) - 1))
+                cand.append((conflicts(s, tg, w), plen, rr))
+            r = min(cand)[2]
         elif T["row"] == S["row"]:
             r = "auto"
         elif S["lane"] == T["lane"]:
