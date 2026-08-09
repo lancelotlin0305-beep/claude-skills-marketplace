@@ -10,6 +10,8 @@
   build_parallel() 單 pool,平行閘道(kind="parallel":同時分岔、合流等齊)
   build_bands()    單 pool + 橫向系統分區(bands 第二軸:系統/階段)
   build_collab()   多 pool 協作,pool 之間以 message flow 連接(跨組織傳訊息)
+  build_simple()   簡易流程圖:Proc(pid, name, simple=True),不套 BPMN 泳道,
+                   只畫節點+連線(lane 可省略);適合單純流程,無角色分區時用
 emit() 對 Proc 或 Collab 皆可用,產出交付物並自動跑 check_layout;
 src=__file__ 會把本定義檔(可攜化 sys.path)複製進輸出資料夾,change*=... 寫入版本記錄表。
 """
@@ -119,9 +121,24 @@ def build_collab():
     return c
 
 
+def build_simple():
+    # 簡易流程圖:不套 BPMN 泳道,只畫節點+連線。lane 可省略。
+    p = Proc("範例_簡易流程圖", "範例｜簡易流程圖(無泳道)", simple=True)
+    p.add("s",  "start",   "開始")
+    p.add("a",  "task",    "填寫申請單")
+    p.add("b",  "task",    "主管審核")
+    p.add("gw", "gateway", "核准?")
+    p.add("c",  "task",    "歸檔")
+    p.add("e",  "end",     "完成")
+    p.flow("s", "a"); p.flow("a", "b"); p.flow("b", "gw")
+    p.flow("gw", "c", "核准→是"); p.flow("gw", "e", "核准→否"); p.flow("c", "e")
+    return p
+
+
 if __name__ == "__main__":
     outdir = sys.argv[1] if len(sys.argv) > 1 else "."
-    for x in (build_manual(), build_auto(), build_parallel(), build_bands(), build_collab()):
+    for x in (build_manual(), build_auto(), build_parallel(), build_bands(),
+              build_collab(), build_simple()):
         emit(x, outdir, src=__file__,
              change="初版產出", change_kind="初版", change_source="流程說明")
     print("done ->", os.path.abspath(outdir))

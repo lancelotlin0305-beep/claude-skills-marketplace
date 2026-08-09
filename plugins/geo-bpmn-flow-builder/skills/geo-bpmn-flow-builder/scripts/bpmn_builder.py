@@ -10,6 +10,7 @@
 
 公開 API:
   Proc(pid, name, lanes, *, bands=None, version="V01.00")   # bands/version 具名傳入
+  Proc(pid, name, simple=True)                 # 簡易流程圖:不套泳道,只畫節點+連線
     .add(id, type, name, lane, row=None, dx=0, kind="exclusive")
         type: start / end / gateway / task
         kind(僅 gateway): exclusive(預設) / parallel / inclusive
@@ -198,7 +199,16 @@ class Proc:
     # bands/version/ox 一律關鍵字-only(20260810 審查修正):原第 4 位置參數是
     # ox,使用者若照文件用位置參數傳 bands 會被靜默塞進 ox、bands 落空。ox 僅
     # 由 Collab 於加入 pool 後以屬性設定,不需位置傳入。
-    def __init__(self, pid, name, lanes, *, bands=None, version="V01.00", ox=None):
+    def __init__(self, pid, name, lanes=None, *, bands=None, version="V01.00",
+                 ox=None, simple=False):
+        # simple=True:簡易流程圖,不套 BPMN 泳道(無 pool 外框/泳道分隔/分區),
+        # 只畫節點+連線;lanes 可省略(內部用單一隱藏泳道),add() 的 lane 可省。
+        self.simple = simple
+        if lanes is None:
+            if not simple:
+                raise ValueError("非簡易模式需指定 lanes(角色泳道);"
+                                 "簡易流程圖請用 Proc(pid, name, simple=True)")
+            lanes = [""]
         self.pid = str(pid)        # 檔名/顯示用,可含中文
         self.xid = _ncname(pid)    # XML 專用 id:ASCII NCName(bpmn.io 要求)
         self.name = _clean(name)
@@ -237,7 +247,7 @@ class Proc:
         ox = POOL_X if self.ox is None else self.ox
         return ox + POOL_HEADER_W + sum(self.lane_width(j) for j in range(i))
 
-    def add(self, nid, t, name, lane, row=None, dx=0, kind=None,
+    def add(self, nid, t, name, lane=0, row=None, dx=0, kind=None,
             attach=None, interrupting=True, loop=False):
         """t: start/end/terminate/message/timer/error/escalation/conditional/
               compensation(事件;kind="catch"預設/"throw",單圈=起訖、
@@ -2888,10 +2898,13 @@ def _process_xml(proc, pidx):
     groups += "".join(
         f'    <bpmn:group id="cgrp_{cid}" categoryValueRef="ccat_{cid}"/>\n'
         for cid, _n, _m, _k in proc.containers)
+    # 簡易模式:不輸出 laneSet(無泳道),僅純 process(節點+連線)
+    laneset_xml = "" if proc.simple else (
+        f'    <bpmn:laneSet id="laneset_{pidx}">\n'
+        f'{chr(10).join(laneset)}\n'
+        f'    </bpmn:laneSet>\n')
     return (f'  <bpmn:process id="{proc.xid}" name={_qa(proc.name)} isExecutable="false">\n'
-            f'    <bpmn:laneSet id="laneset_{pidx}">\n'
-            f'{chr(10).join(laneset)}\n'
-            f'    </bpmn:laneSet>\n'
+            f'{laneset_xml}'
             f'{groups}'
             f'{chr(10).join(el)}\n'
             f'{chr(10).join(fl)}\n'
@@ -2910,7 +2923,8 @@ def _pool_di_xml(proc, pidx, pool_h):
         f'        <dc:Bounds x="{proc.ox}" y="{POOL_Y - POOL_TITLE_BAND}" '
         f'width="{proc.pool_width()}" height="{pool_h + POOL_TITLE_BAND}"/>\n'
         f'      </bpmndi:BPMNShape>')
-    for i in range(len(proc.lanes)):
+    lane_range = [] if proc.simple else range(len(proc.lanes))  # 簡易:無泳道 DI
+    for i in lane_range:
         # bpmn.io 的參與者名稱在頂帶,SVG 的左側直條(POOL_HEADER_W)在此無用途,
         # 若照搬會在 pool 左緣留一條 30px 空縫;讓第一泳道向左延伸吃掉它。
         lx = proc._lane_x(i) - (POOL_HEADER_W if i == 0 else 0)
@@ -3163,6 +3177,8 @@ def _drawio_page_xml(x, page_id):
 
     # 底層 → 上層(XML 順序即 z-order):分區底色 → pool/lane 框與標題 → 連線 → 節點
     for i, proc in enumerate(pools):
+        if proc.simple:                 # 簡易模式:不畫分區底色帶
+            continue
         gx = proc.ox + POOL_HEADER_W
         gw = proc.pool_width() - POOL_HEADER_W
         for k, (bname, y0, y1, bfill, bstroke) in enumerate(proc.band_spans()):
@@ -3191,6 +3207,8 @@ def _drawio_page_xml(x, page_id):
          "fontSize=19;fontColor=#1f2d3d;",
          left0, POOL_Y - 48, max(360, len(str(x.name)) * 20 + 90), 28)
     for i, proc in enumerate(pools):
+        if proc.simple:                 # 簡易模式:不畫 pool 外框/泳道/標頭
+            continue
         pw = proc.pool_width()
         cell("dio_pool_%d" % i, "",
              "rounded=0;html=1;fillColor=none;strokeColor=#3a4a59;strokeWidth=2;",
@@ -3743,8 +3761,17 @@ def build_svg(x, pad_aspect=True):
     # viewBox 內容自適應:依實際內容範圍四邊各留 PAD 小留白;
     # 寬高比不寫死,但低於 MIN_ASPECT(直式過長會被預覽器裁底)時左右對稱補白。
     PAD = 24
-    left = min(proc.ox for proc in pools)
-    right = max(proc.ox + proc.pool_width() for proc in pools)
+    if any(p.simple for p in pools):
+        # 簡易模式無 pool 框:viewBox 依實際節點範圍,修掉表頭欄留白
+        xs = [n["x"] for p in pools for n in p.nodes.values()
+              if n.get("x") is not None]
+        xw = [n["x"] + n["w"] for p in pools for n in p.nodes.values()
+              if n.get("x") is not None]
+        left = min(xs) if xs else min(p.ox for p in pools)
+        right = max(xw) if xw else max(p.ox + p.pool_width() for p in pools)
+    else:
+        left = min(proc.ox for proc in pools)
+        right = max(proc.ox + proc.pool_width() for proc in pools)
     for _bx, _bn, box, bw in getattr(x, "_bb_geo", []):
         right = max(right, box + bw)
     title_top = (POOL_Y - 20) - 19             # 圖頂標題 baseline 與字級
@@ -3787,7 +3814,8 @@ def build_svg(x, pad_aspect=True):
                  f'font-weight="bold" fill="#1f2d3d" text-anchor="middle">'
                  f'{escape(bname)}</text>')
     for proc in pools:
-        s += _svg_pool(proc, pool_h)
+        if not proc.simple:            # 簡易模式:不畫 pool 外框/泳道/分區
+            s += _svg_pool(proc, pool_h)
     for proc in pools:
         for cid, cname, cx0, cy0, cx1, cy1, ckind in proc.container_spans():
             dash = ' stroke-dasharray="6,4"' if ckind == "event" else ""

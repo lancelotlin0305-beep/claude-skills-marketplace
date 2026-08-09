@@ -189,6 +189,49 @@ def test_viewer_touch_keyboard_aria():
 
 
 # ---------------------------------------------------------------------------
+# 簡易模式(無泳道/無框)
+# ---------------------------------------------------------------------------
+def _simple_proc():
+    p = B.Proc("s_test", "簡易流程", simple=True)
+    p.add("s", "start", "開始")           # lane 可省略
+    p.add("a", "task", "步驟一")
+    p.add("gw", "gateway", "判斷?")
+    p.add("b", "task", "步驟二")
+    p.add("e", "end", "完成")
+    p.flow("s", "a"); p.flow("a", "gw")
+    p.flow("gw", "b", "是"); p.flow("gw", "e", "否"); p.flow("b", "e")
+    return p
+
+
+def test_simple_requires_no_lanes():
+    p = _simple_proc()
+    assert p.simple and p.lanes == [""], "簡易模式用單一隱藏泳道"
+
+
+def test_simple_no_swimlane_chrome():
+    svg = B.build_svg(_simple_proc())
+    assert 'stroke="#9aa7b4" stroke-width="1.5"' not in svg, "簡易不應有 pool 外框"
+    assert "rotate(-90" not in svg, "簡易不應有泳道標頭"
+    assert "<title>" in svg, "仍保留 SVG title(無障礙)"
+
+
+def test_simple_outputs_wellformed_and_clean():
+    p = _simple_proc()
+    for fn in (B.build_svg, B.build_drawio, B.build_bpmn):
+        minidom.parseString(fn(p))
+    assert not _iron_violations(p), "簡易模式仍須鐵則硬傷=0"
+
+
+def test_non_simple_requires_lanes():
+    raised = False
+    try:
+        B.Proc("x", "無泳道會報錯")   # 非 simple 又沒給 lanes
+    except Exception:
+        raised = True
+    assert raised, "非簡易模式未給 lanes 應 raise"
+
+
+# ---------------------------------------------------------------------------
 # 內建 runner(免 pytest)
 # ---------------------------------------------------------------------------
 def _run():
