@@ -29,7 +29,24 @@
        change=None, change_kind=None, change_source=None)
 """
 import os, math, re, hashlib, time
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import escape, quoteattr
+
+# XML 1.0 非法控制字元(保留 \t\n\r):存入名稱/標籤時過濾,否則三種輸出
+# 全部 non-well-formed(20260810 安全審查)。名稱中的 \n 為合法換行,不濾。
+_CTRL_RE = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f]')
+
+
+def _clean(s):
+    """清掉 XML 非法控制字元;None→""。用於節點名/標籤/泳道名等使用者文字。"""
+    return _CTRL_RE.sub("", s) if isinstance(s, str) else ("" if s is None else str(s))
+
+
+def _safe_stem(s):
+    """檔名 stem 清洗:去目錄成分(防路徑穿越)、去檔名非法字元(20260810 安全審查)。
+    保留中文;pid 含 ../ 或 C:\\ 或分隔符時不致寫出 outdir 之外。"""
+    s = os.path.basename(_CTRL_RE.sub("", str(s)))
+    s = re.sub(r'[<>:"/\\|?*]', "_", s).strip(" .")
+    return s or "diagram"
 
 MIN_ASPECT = 1.3                   # viewBox 最低寬高比:過窄的直式圖在預覽器會裁底
 PAD_CAP = 2.0                      # 補白封頂:補白後寬 ≤ 內容寬 × PAD_CAP(主圖至少佔畫布一半),
@@ -184,15 +201,15 @@ class Proc:
     def __init__(self, pid, name, lanes, *, bands=None, version="V01.00", ox=None):
         self.pid = str(pid)        # 檔名/顯示用,可含中文
         self.xid = _ncname(pid)    # XML 專用 id:ASCII NCName(bpmn.io 要求)
-        self.name = name
-        self.lanes = lanes
+        self.name = _clean(name)
+        self.lanes = [_clean(l) for l in lanes]
         self.lane_subs = [1] * len(lanes)  # 各泳道子欄數;自動佈局加寬版會把長鏈泳道設為 2
         self.lane_pad = {}          # 河道加寬:{lane: 額外寬 px}
         self.assocs = []           # 關連(點線):[(aid, src, tgt, label), ...]
         self.containers = []       # 展開/事件子流程容器:[(cid, name, [成員id], kind)]
         self.version = version     # 版號 V主版.次版;進位規則見 reference/workflow.md
         self.ox = ox               # pool 原點 x;None = 獨立使用,預設 POOL_X
-        self.bands = [(bn, [_ncname(i) for i in ids])
+        self.bands = [(_clean(bn), [_ncname(i) for i in ids])
                       for bn, ids in (bands or [])]  # 橫向系統分區:[(名稱, [節點id, ...]), ...]
         self.nodes = {}
         self.flows = []
@@ -252,6 +269,9 @@ class Proc:
                                            "inclusive", "event"):
             raise ValueError(f"gateway kind 只能是 exclusive/parallel/"
                              f"inclusive/event,收到 {kind!r}")
+        name = _clean(name)                     # 濾 XML 非法控制字元(安全審查)
+        if nid in self.nodes:                   # 重複 id 靜默覆寫易漏,至少警示
+            print(f"⚠ add():節點 id {nid!r} 重複,將覆寫前一個(舊邊可能懸空)")
         w, h = node_size(t, name)
         if attach is not None:
             attach = _ncname(attach)
@@ -361,7 +381,7 @@ class Proc:
                 f"flow({src!r}→{tgt!r}) 的 route={route!r} 無效,"
                 f"只能是 {sorted(VALID_ROUTES)}")
         fid = "f_%d" % (len(self.flows) + 1)
-        self.flows.append((fid, _ncname(src), _ncname(tgt), label, route))
+        self.flows.append((fid, _ncname(src), _ncname(tgt), _clean(label), route))
 
 
 class Collab:
@@ -399,7 +419,13 @@ def _pools_mflows(x):
 
 
 def _attr(name, val):
-    return f' {name}="{escape(val)}"' if val else ""
+    # quoteattr 自帶外層引號且會跳脫引號(escape 不跳脫引號→屬性注入,安全審查)
+    return f' {name}={quoteattr(str(val))}' if val else ""
+
+
+def _qa(val):
+    """XML 屬性值:過濾控制字元 + quoteattr(自帶引號)。用於 name=/value=。"""
+    return quoteattr(_clean(val))
 
 
 # ---------------------------------------------------------------------------
@@ -724,6 +750,10 @@ def check_semantics(x):
             if s in adj and tg in adj:
                 adj[s].append(tg); radj[tg].append(s)
                 labeled.setdefault(s, []).append(lab)
+            else:   # 幽靈邊:端點打錯致靜默丟棄,難定位——如實回報(安全審查)
+                miss = s if s not in adj else tg
+                iss.append(f"順序流 {s}→{tg} 引用不存在的節點「{miss}」"
+                           f"(flow() 端點打錯?此邊已被忽略)")
         flow_nodes = {k: n for k, n in p.nodes.items()
                       if n["t"] not in NONGRID_TS}   # 工件/註解不參與流程語意
         starts = [k for k, n in flow_nodes.items()
@@ -1315,15 +1345,27 @@ def auto_layout(p, auto_route=True, compact=None):
         cand = _try(m)
         if best is None or cand[0] < best[0]:
             best = cand
+        if best[0][0] == 0:              # 已達 0 缺陷且列數達標=理論下界,早停(效能)
+            break
     # 列數仍超過閾值 → 逐級加試加寬版(chain:僅一進一出節點並排、
-    # 多連線節點降列;wide:蛇行並排),同樣以評分取優
-    if compact is None:
+    # 多連線節點降列;wide:蛇行並排),同樣以評分取優。
+    # 時限保底(20260810 效能審查):加寬逐級試算是最貴的尾段,超過
+    # ENGINE_TIME_CAP 即停止進一步候選、採當前 best(已算出的最低分佈局),
+    # 避免大圖失控久跑;正常圖遠在此之下,不受影響。
+    if compact is None and best[0][0] != 0:
+        _t0 = time.monotonic()
         k = 2
         while best[0][1] > ROW_CAP and k <= MAX_SUBS:
+            if time.monotonic() - _t0 > ENGINE_TIME_CAP:
+                break
             for kind in ("chain", "wide", "chainL", "wideL"):
                 cand = _try((kind, k))       # *L=迴圈親和分欄變體(20260710.13)
                 if cand[0] < best[0]:
                     best = cand
+                if best[0][0] == 0:
+                    break
+            if best[0][0] == 0:
+                break
             k += 1
     _, depth, sub, flows, lane_subs = best
     p.flows = [tuple(f) for f in flows]
@@ -2771,7 +2813,7 @@ def _process_xml(proc, pidx):
         refs = "".join(f"\n        <bpmn:flowNodeRef>{x}</bpmn:flowNodeRef>"
                        for x in by_lane[i])
         laneset.append(
-            f'      <bpmn:lane id="lane_{pidx}_{i}" name="{escape(lname)}">'
+            f'      <bpmn:lane id="lane_{pidx}_{i}" name={_qa(lname)}>'
             f'{refs}\n      </bpmn:lane>')
     el = []
     TASK_TAG = {"user": "userTask", "system": "serviceTask",
@@ -2779,7 +2821,9 @@ def _process_xml(proc, pidx):
                 "send": "sendTask", "receive": "receiveTask",
                 "script": "scriptTask", "call": "callActivity"}
     for n in proc.nodes.values():
-        nid, t, nm = n["id"], n["t"], escape(n["name"])
+        nid, t = n["id"], n["t"]
+        nm = escape(_clean(n["name"]))   # 文字內容用;屬性用 na(quoteattr 含引號)
+        na = _qa(n["name"])
         io = "".join(f"\n      <bpmn:incoming>{f}</bpmn:incoming>" for f in inc[nid])
         io += "".join(f"\n      <bpmn:outgoing>{f}</bpmn:outgoing>" for f in outg[nid])
         evdef = ""
@@ -2787,11 +2831,11 @@ def _process_xml(proc, pidx):
             tag = GW_TAG.get(n.get("kind", "exclusive"), "exclusiveGateway")
         elif t in ("input", "output"):
             el.append(f'    <bpmn:dataObject id="do_{nid}"/>')
-            el.append(f'    <bpmn:dataObjectReference id="{nid}" name="{nm}" '
+            el.append(f'    <bpmn:dataObjectReference id="{nid}" name={na} '
                       f'dataObjectRef="do_{nid}"/>')
             continue
         elif t == "database":
-            el.append(f'    <bpmn:dataStoreReference id="{nid}" name="{nm}"/>')
+            el.append(f'    <bpmn:dataStoreReference id="{nid}" name={na}/>')
             continue
         elif t == "terminate":
             tag = "endEvent"
@@ -2807,7 +2851,7 @@ def _process_xml(proc, pidx):
                 # 邊界事件:貼附宿主;interrupting=False → cancelActivity="false"
                 cancel = "" if n.get("interrupting", True) \
                     else ' cancelActivity="false"'
-                el.append(f'    <bpmn:boundaryEvent id="{nid}" name="{nm}" '
+                el.append(f'    <bpmn:boundaryEvent id="{nid}" name={na} '
                           f'attachedToRef="{n["attach"]}"{cancel}>{io}{evdef}\n'
                           f'    </bpmn:boundaryEvent>')
                 continue
@@ -2825,7 +2869,7 @@ def _process_xml(proc, pidx):
                 evdef = f'\n      <bpmn:standardLoopCharacteristics id="loop_{nid}"/>'
         else:
             tag = {"start": "startEvent", "end": "endEvent"}.get(t, "task")
-        el.append(f'    <bpmn:{tag} id="{nid}" name="{nm}">{io}{evdef}\n    </bpmn:{tag}>')
+        el.append(f'    <bpmn:{tag} id="{nid}" name={na}>{io}{evdef}\n    </bpmn:{tag}>')
     fl = []
     for fid, s, tg, lab, rt in proc.flows:
         fl.append(f'    <bpmn:sequenceFlow id="{_fid(proc, fid)}"{_attr("name", lab)} '
@@ -2844,7 +2888,7 @@ def _process_xml(proc, pidx):
     groups += "".join(
         f'    <bpmn:group id="cgrp_{cid}" categoryValueRef="ccat_{cid}"/>\n'
         for cid, _n, _m, _k in proc.containers)
-    return (f'  <bpmn:process id="{proc.xid}" name="{escape(proc.name)}" isExecutable="false">\n'
+    return (f'  <bpmn:process id="{proc.xid}" name={_qa(proc.name)} isExecutable="false">\n'
             f'    <bpmn:laneSet id="laneset_{pidx}">\n'
             f'{chr(10).join(laneset)}\n'
             f'    </bpmn:laneSet>\n'
@@ -2945,10 +2989,10 @@ def _pools_bpmn(pools, mflows, defs_id, collab_id, collab_name="", bb=()):
     allnodes.update(_bb_nodes(type('B', (), {'_bb_geo': bb})(), pool_h))
 
     participants = "".join(
-        f'\n    <bpmn:participant id="part_{i}" name="{escape(proc.name)}" '
+        f'\n    <bpmn:participant id="part_{i}" name={_qa(proc.name)} '
         f'processRef="{proc.xid}"/>' for i, proc in enumerate(pools))
     participants += "".join(
-        f'\n    <bpmn:participant id="{bxid}" name="{escape(bname)}"/>'
+        f'\n    <bpmn:participant id="{bxid}" name={_qa(bname)}/>'
         for bxid, bname, _o, _w in bb)     # 黑箱 pool:無 processRef
     mf_xml = "".join(
         f'\n    <bpmn:messageFlow id="{mid}"{_attr("name", lab)} '
@@ -2980,7 +3024,7 @@ def _pools_bpmn(pools, mflows, defs_id, collab_id, collab_name="", bb=()):
         gw = proc.pool_width() - POOL_HEADER_W
         for k, (name, y0, y1, _f, _s) in enumerate(proc.band_spans()):
             cats += (f'  <bpmn:category id="cat_{i}_{k}">\n'
-                     f'    <bpmn:categoryValue id="catval_{i}_{k}" value="{escape(name)}"/>\n'
+                     f'    <bpmn:categoryValue id="catval_{i}_{k}" value={_qa(name)}/>\n'
                      f'  </bpmn:category>\n')
             grp_di.append(
                 f'      <bpmndi:BPMNShape id="di_grp_{i}_{k}" bpmnElement="grp_{i}_{k}">\n'
@@ -2988,7 +3032,7 @@ def _pools_bpmn(pools, mflows, defs_id, collab_id, collab_name="", bb=()):
                 f'      </bpmndi:BPMNShape>')
         for cid, cname, _m, _kd in proc.containers:
             cats += (f'  <bpmn:category id="ccatg_{cid}">\n'
-                     f'    <bpmn:categoryValue id="ccat_{cid}" value="{escape(cname)}"/>\n'
+                     f'    <bpmn:categoryValue id="ccat_{cid}" value={_qa(cname)}/>\n'
                      f'  </bpmn:category>\n')
         for cid, cname, cx0, cy0, cx1, cy1, _kd in proc.container_spans():
             grp_di.append(
@@ -3787,7 +3831,11 @@ def build_svg(x, pad_aspect=True):
 # ---------------------------------------------------------------------------
 # Markdown 輸出
 # ---------------------------------------------------------------------------
-TYPE_ZH = {"start": "起始事件", "end": "結束事件", "gateway": "決策閘道", "task": "任務"}
+TYPE_ZH = {"start": "起始事件", "end": "結束事件", "gateway": "決策閘道", "task": "任務",
+           "terminate": "終止事件", "message": "訊息事件", "timer": "計時事件",
+           "error": "錯誤事件", "escalation": "升級事件", "conditional": "條件事件",
+           "compensation": "補償事件", "input": "輸入文件", "output": "輸出文件",
+           "database": "資料儲存", "note": "註解"}
 KIND_ZH = {"exclusive": "排他", "parallel": "平行", "inclusive": "包容"}
 
 
@@ -4051,7 +4099,7 @@ _LOG_HEADER = ("# {name}｜版本記錄\n\n"
 
 def _write_changelog(x, outdir, change, change_kind, change_source):
     """維護每張圖的獨立版本記錄表(檔名不帶版號,跨版累積)。"""
-    stem = x.cid if isinstance(x, Collab) else x.pid   # 檔名用(可中文),非 XML xid
+    stem = _safe_stem(x.cid if isinstance(x, Collab) else x.pid)   # 檔名用(可中文),非 XML xid
     return _write_changelog_row(stem, x.name, x.version, outdir,
                                 change, change_kind, change_source)
 
@@ -4168,7 +4216,7 @@ def _emit_one_page(x, idx):
     sem = check_semantics(x)
     probs = check_layout(x)
     md = build_md(x) + _iron_md_section(sem, probs)
-    stem = x.cid if isinstance(x, Collab) else x.pid
+    stem = _safe_stem(x.cid if isinstance(x, Collab) else x.pid)
     return (idx, stem, x.name, page, svg, svg_np, md, sem, probs,
             time.monotonic() - t0)
 
@@ -4247,12 +4295,13 @@ def emit_multi(diagrams, project, outdir=".", version="V01.00", src=None,
     """
     if not diagrams:
         raise ValueError("沒有任何流程圖;請至少提供一個 Proc / Collab。")
+    project = _safe_stem(project)   # 檔名用,清路徑穿越(安全審查)
     # 規則:多頁 .drawio 內節點 id 必須全檔唯一(跨頁重複會使 draw.io
     # 連線錯亂、箭頭消失)。撰寫定義時各圖 id 應加圖前綴(如 a1_/a2_)。
     seen_ids, dup = {}, []
     for x in diagrams:
         procs = x.pools if isinstance(x, Collab) else [x]
-        stem = x.cid if isinstance(x, Collab) else x.pid
+        stem = _safe_stem(x.cid if isinstance(x, Collab) else x.pid)
         for pr in procs:
             for nid in pr.nodes:
                 if nid in seen_ids and seen_ids[nid] != stem:
@@ -4334,7 +4383,7 @@ def emit(x, outdir=".", viewer=True, src=None, fmt="drawio",
     if fmt not in ("bpmn", "drawio"):
         raise ValueError(f"fmt 只能是 'bpmn' 或 'drawio',收到 {fmt!r}")
     t0 = time.monotonic()
-    stem = x.cid if isinstance(x, Collab) else x.pid   # 檔名用(可中文),非 XML xid
+    stem = _safe_stem(x.cid if isinstance(x, Collab) else x.pid)   # 檔名用(可中文),非 XML xid
     # 版號子目錄(20260716.01):5 個帶版號檔存 outdir/{version}/,
     # 版本記錄表(跨版累積)留在 outdir 上層;outdir 已是該版號目錄時不重複巢套。
     # git 版控模式(20260720.01):不建版號子目錄、檔名不帶版號,原地覆寫。

@@ -71,9 +71,10 @@ def parse_bpmn(path):
     for sh in root.iter(f'{{{NS["bpmndi"]}}}BPMNShape'):
         b = sh.find(f'{{{NS["dc"]}}}Bounds')
         if b is not None:
+            # 缺屬性給 0 預設,避免 float(None) 拋不可讀 TypeError(20260810 複審)
             shape_bounds[sh.get("bpmnElement")] = (
-                float(b.get("x")), float(b.get("y")),
-                float(b.get("width")), float(b.get("height")))
+                float(b.get("x") or 0), float(b.get("y") or 0),
+                float(b.get("width") or 0), float(b.get("height") or 0))
     # category id → 分區名稱
     catval = {}
     for cat in root.findall(f'{{{NS["bpmn"]}}}category'):
