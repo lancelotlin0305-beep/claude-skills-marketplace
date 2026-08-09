@@ -2,7 +2,7 @@
  {
   "id": "P01",
   "name": "laptop-dashboard",
-  "prompt": "Professional 3D render of a modern slim laptop displaying an abstract analytics dashboard composed only of colored bars, line graphs and dots, matte aluminum body and frosted-glass screen panels, restrained palette of white, silver-gray and desaturated blue, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
+  "prompt": "Professional 3D render of a modern slim laptop displaying an abstract analytics dashboard composed only of colored bars, line graphs and dots, matte aluminum body and opaque matte (frosted look but fully opaque) screen panels, restrained palette of white, silver-gray and desaturated blue, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
  },
  {
   "id": "P02",
@@ -17,17 +17,17 @@
  {
   "id": "P04",
   "name": "server-database",
-  "prompt": "Professional 3D render of a sleek server tower beside three stacked cylindrical database drums with thin glowing indicator lines, matte dark-silver casing with frosted-glass panels and desaturated blue accents, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
+  "prompt": "Professional 3D render of a sleek server tower beside three stacked cylindrical database drums with thin glowing indicator lines, matte dark-silver casing with opaque matte (frosted look but fully opaque) panels and desaturated blue accents, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
  },
  {
   "id": "P05",
   "name": "security-shield",
-  "prompt": "Professional 3D render of a sleek shield emblem with an embossed checkmark and subtle keyhole detail, frosted-glass front over a brushed-metal frame, desaturated blue and silver, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
+  "prompt": "Professional 3D render of a sleek shield emblem with an embossed checkmark and subtle keyhole detail, opaque matte (frosted look but fully opaque) front over a brushed-metal frame, desaturated blue and silver, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
  },
  {
   "id": "P06",
   "name": "cloud-network",
-  "prompt": "Professional 3D render of a smooth minimal cloud form with a small constellation of connected metallic nodes and thin lines suspended beneath it, matte white with frosted-glass nodes and desaturated blue accents, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
+  "prompt": "Professional 3D render of a smooth minimal cloud form with a small constellation of connected metallic nodes and thin lines suspended beneath it, matte white with opaque matte (frosted look but fully opaque) nodes and desaturated blue accents, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
  },
  {
   "id": "P07",
@@ -47,7 +47,7 @@
  {
   "id": "P10",
   "name": "rain-cloud",
-  "prompt": "Professional 3D render of a smooth minimal rain cloud with a few refined teardrop raindrops suspended beneath it, matte white and frosted-glass materials with desaturated blue accents, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
+  "prompt": "Professional 3D render of a smooth minimal rain cloud with a few refined teardrop raindrops suspended beneath it, matte white and opaque matte (frosted look but fully opaque) materials with desaturated blue accents, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
  },
  {
   "id": "P11",
@@ -67,7 +67,7 @@
  {
   "id": "P14",
   "name": "gov-building",
-  "prompt": "Professional 3D render of an architectural model of a dignified government office building with columns and wide front steps, matte white and cream stone with subtle desaturated blue glass, no flags, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
+  "prompt": "Professional 3D render of an architectural model of a dignified government office building with columns and wide front steps, matte white and cream stone with subtle desaturated blue opaque panels, no flags, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
  },
  {
   "id": "P15",
@@ -77,7 +77,7 @@
  {
   "id": "P16",
   "name": "growth-chart",
-  "prompt": "Professional 3D render of ascending rectangular chart columns in frosted glass and desaturated blue with a sleek metallic upward arrow sweeping above them, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
+  "prompt": "Professional 3D render of ascending rectangular chart columns in opaque matte (frosted look but fully opaque) and desaturated blue with a sleek metallic upward arrow sweeping above them, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
  },
  {
   "id": "P17",
@@ -87,12 +87,12 @@
  {
   "id": "P18",
   "name": "trading-screen",
-  "prompt": "Professional 3D render of a slim desktop monitor displaying an abstract candlestick chart made only of green and red rectangular bars with a rising trend line, matte aluminum stand and frosted-glass screen; the screen shows only abstract shapes, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
+  "prompt": "Professional 3D render of a slim desktop monitor displaying an abstract candlestick chart made only of green and red rectangular bars with a rising trend line, matte aluminum stand and opaque matte (frosted look but fully opaque) screen; the screen shows only abstract shapes, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
  },
  {
   "id": "P19",
   "name": "global-finance",
-  "prompt": "Professional 3D render of a refined globe with frosted-glass oceans and subtle metallic continents, orbited by a thin dotted ring connecting three small floating blank coin and document icons, desaturated blue, silver and gold accents, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
+  "prompt": "Professional 3D render of a refined globe with opaque matte (frosted look but fully opaque) oceans and subtle metallic continents, orbited by a thin dotted ring connecting three small floating blank coin and document icons, desaturated blue, silver and gold accents, premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, fully isolated single object with no background elements, sharp clean edges, product-visualization quality. Strictly no text, no letters, no numbers, no logos, no watermarks."
  },
  {
   "id": "P20",

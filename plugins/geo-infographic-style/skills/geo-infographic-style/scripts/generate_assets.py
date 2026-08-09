@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""在 Claude Code(本機、有網路)環境批次產製圖庫素材。
+"""[DEPRECATED] 請優先用 scripts/gen_assets.js(Node,兩供應商都支援、功能較全)。
+本檔為 OpenAI-only 的舊批次工具,功能是 gen_assets.js 的子集;僅在需要純 Python 環境時保留。
+
+在 Claude Code(本機、有網路)環境批次產製圖庫素材。
 用法:
   export OPENAI_API_KEY=sk-...
   python generate_assets.py                 # 產全部 20 張(真透明 PNG)
@@ -35,11 +38,26 @@ def main():
     only = {x.strip() for x in a.only.split(',') if x.strip()}
     client = OpenAI()
 
+    # R9 模板 + C1:尾句拆核心/禁文字;ALLOW_TERMS 設定時改為允許少數短術語(與 gen_assets.js 一致)。
+    import re as _re
+    ALLOW_TERMS = os.environ.get('ALLOW_TERMS', '')
+    TAIL_CORE = (' premium corporate design, semi-realistic proportions, refined studio lighting from the upper left, '
+                 'fully isolated single object with no background elements, sharp clean edges, product-visualization quality.')
+    NOTEXT = ' Strictly no text, no letters, no numbers, no logos, no watermarks.'
+    def with_tail(p):
+        base = _re.sub(r'\s*Strictly no text[\s\S]*$', '', p, flags=_re.I).rstrip()
+        if 'product-visualization quality' not in base.lower():
+            base += TAIL_CORE
+        if ALLOW_TERMS:
+            which = 'a short domain acronym such as AI/KPI/GIS' if ALLOW_TERMS == '1' else ALLOW_TERMS
+            return base + f' No paragraph or data text; only a tiny short label ({which}) may appear if essential.'
+        return base + NOTEXT
+
     for it in items:
         if only and it['id'] not in only: continue
         dst = outdir / f"{it['id']}_{it['name']}.png"
         print(f"[{it['id']}] 生成中 → {dst.name}")
-        r = client.images.generate(model=a.model, prompt=it['prompt'],
+        r = client.images.generate(model=a.model, prompt=with_tail(it['prompt']),
             size='1024x1024', quality=a.quality,
             background='transparent', output_format='png')
         raw = base64.b64decode(r.data[0].b64_json)
