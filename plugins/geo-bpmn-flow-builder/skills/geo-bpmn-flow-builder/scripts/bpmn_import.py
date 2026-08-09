@@ -24,11 +24,35 @@ CLI:
 import os, re, sys
 import xml.etree.ElementTree as ET
 
+# 從 scripts 目錄外呼叫時亦能 import bpmn_builder(20260810 審查修正)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from bpmn_builder import EVDEF as _EVDEF   # {事件kind: defTag}
+
 NS = {"bpmn": "http://www.omg.org/spec/BPMN/20100524/MODEL",
       "bpmndi": "http://www.omg.org/spec/BPMN/20100524/DI",
       "dc": "http://www.omg.org/spec/DD/20100524/DC"}
 
 _VER_RE = re.compile(r"(V\d{2}\.\d{2})")
+
+# .bpmn 標籤 → builder 型別/kind 反向對照(與 bpmn_builder._pools_bpmn 對稱)
+_DEF2T = {v: k for k, v in _EVDEF.items()}       # defTag → 事件型別
+_TASK2KIND = {"userTask": "user", "serviceTask": "system", "sendTask": "send",
+              "receiveTask": "receive", "scriptTask": "script",
+              "callActivity": "call", "subProcess": "subprocess", "task": "generic"}
+_SKIP_TAGS = ("laneSet", "group", "dataObject", "extensionElements",
+              "property", "documentation", "association",
+              "dataInputAssociation", "dataOutputAssociation")
+
+
+def _event_type(el):
+    """讀事件的子 *EventDefinition 判定型別;terminate 優先,無定義回 None。"""
+    for ch in el:
+        ct = ch.tag.split("}")[-1]
+        if ct == "terminateEventDefinition":
+            return "terminate"
+        if ct in _DEF2T:
+            return _DEF2T[ct]
+    return None
 
 
 def _ver_from(path_or_title):
@@ -61,7 +85,6 @@ def parse_bpmn(path):
         for p in col.findall(f'{{{NS["bpmn"]}}}participant'):
             part_name[p.get("processRef")] = p.get("name", "")
     pools = []
-    node_pool = {}          # node name → pool 名(訊息流顯示用)
     id2name = {}
     for proc in root.findall(f'{{{NS["bpmn"]}}}process'):
         pid = proc.get("id")
@@ -76,25 +99,45 @@ def parse_bpmn(path):
         nodes, flows = {}, []
         for el in proc:
             tag = el.tag.split("}")[-1]
-            if tag in ("laneSet", "group"):
+            if tag in _SKIP_TAGS:
                 continue
             if tag == "sequenceFlow":
                 flows.append((el.get("sourceRef"), el.get("targetRef"),
                               el.get("name", "") or ""))
                 continue
+            nid, nm = el.get("id"), el.get("name", "") or ""
+            # 型別/kind 反向還原(20260810 審查修正:原除 gw/start/end 外全塌成
+            # task,使中間/邊界/訊息/計時事件與 user/service 等 kind 往返遺失)
             if tag.endswith("Gateway"):
                 t, kind = "gateway", tag[:-len("Gateway")].lower()
+            elif tag == "boundaryEvent":
+                t, kind = _event_type(el) or "message", "catch"
+            elif tag in ("intermediateCatchEvent", "intermediateThrowEvent"):
+                t = _event_type(el) or "message"
+                kind = "throw" if tag == "intermediateThrowEvent" else "catch"
             elif tag == "startEvent":
-                t, kind = "start", ""
+                et = _event_type(el)
+                t, kind = (et or "start"), ("catch" if et else "")
             elif tag == "endEvent":
-                t, kind = "end", ""
-            else:                      # task / userTask / serviceTask ... 一律視為 task
+                et = _event_type(el)        # terminateEventDefinition → "terminate"
+                t = et or "end"
+                kind = "throw" if (et and et != "terminate") else ""
+            elif tag == "dataObjectReference":
+                # .bpmn 不編碼工件方向(input/output),統一還原為 output;
+                # 需區分方向者請改用 .drawio(drawio_import 可還原)
+                t, kind = "output", ""
+            elif tag == "dataStoreReference":
+                t, kind = "database", ""
+            elif tag == "textAnnotation":
+                t, kind = "note", ""
+                nm = (el.findtext(f'{{{NS["bpmn"]}}}text') or "").strip()
+            elif tag.endswith("Task") or tag in ("callActivity", "subProcess"):
+                t, kind = "task", _TASK2KIND.get(tag, "generic")
+            else:
                 t, kind = "task", ""
-            nid, nm = el.get("id"), el.get("name", "") or ""
             nodes[nid] = dict(id=nid, t=t, name=nm,
                               lane=lane_of.get(nid), kind=kind)
             id2name[nid] = nm
-            node_pool[nm] = pname
         # bands:group DI 的 y 範圍涵蓋哪些節點
         bands = []
         for grp in proc.findall(f'{{{NS["bpmn"]}}}group'):

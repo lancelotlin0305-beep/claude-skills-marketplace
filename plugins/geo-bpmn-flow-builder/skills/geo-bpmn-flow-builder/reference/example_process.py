@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-"""範例:定義流程並產出全部交付物(每張圖 6 檔;圖檔 XML 依 emit 的 fmt 擇一:.bpmn 預設/.drawio)。
+"""範例:定義流程並產出交付物(必產 3 檔:流程說明 .md、流程定義 .py、版本記錄;
+可選 3 檔:圖檔 XML、SVG、HTML 檢視器。圖檔 XML 依 emit 的 fmt:預設 .drawio,
+明講用 bpmn.io 才給 fmt="bpmn" 產 .bpmn)。
 執行: python3 example_process.py [輸出資料夾]
 
 涵蓋:
@@ -8,8 +10,8 @@
   build_parallel() 單 pool,平行閘道(kind="parallel":同時分岔、合流等齊)
   build_bands()    單 pool + 橫向系統分區(bands 第二軸:系統/階段)
   build_collab()   多 pool 協作,pool 之間以 message flow 連接(跨組織傳訊息)
-emit() 對 Proc 或 Collab 皆可用,一次產出 6 檔並自動跑 check_layout;
-src=__file__ 會把本定義檔複製進輸出資料夾,change*=... 寫入版本記錄表。
+emit() 對 Proc 或 Collab 皆可用,產出交付物並自動跑 check_layout;
+src=__file__ 會把本定義檔(可攜化 sys.path)複製進輸出資料夾,change*=... 寫入版本記錄表。
 """
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))

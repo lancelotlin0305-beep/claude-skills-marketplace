@@ -14,8 +14,8 @@
 .drawio(mxGraph)檢查:well-formed、必備根節點 0/1、id 唯一、
         id 非 JS 內建屬性名(fill/map/push 等,draw.io 開檔會失敗)、
         邊的 source/target 存在、頂點/邊皆有 mxGeometry(自閉合邊不會渲染)
-交付  每張圖 6 檔齊備:圖檔 XML(.bpmn 或 .drawio 擇一)
-      /.svg/.md/_檢視器.html/_流程定義.py/_版本記錄.md
+交付  必產 3 檔(.md/_流程定義.py/_版本記錄.md)齊備為門檻;可選 3 檔
+      (圖檔 XML .bpmn 或 .drawio/.svg/_檢視器.html)缺為提醒
 --score 另列版面可讀性評分(越低越好,限同圖變體比較)
 """
 import sys, glob, os, xml.etree.ElementTree as ET
@@ -33,19 +33,23 @@ NODE_TAGS = ('task', 'userTask', 'serviceTask', 'scriptTask', 'sendTask',
 ARTIFACT_TAGS = ('dataObjectReference', 'dataStoreReference',
                  'textAnnotation')
 # JS 內建屬性名不可作 .drawio cell id:draw.io 以純 JS 物件/陣列作 id 查找表,
-# 撞名時開檔報「x.setId is not a function」(20260710.10 實測;
-# 清單與 bpmn_builder._JS_RESERVED 同步維護,builder 端已自動改名,
-# 此為第二道防線,涵蓋使用者手改/外部產生的檔)
-JS_RESERVED_IDS = frozenset((
-    "constructor", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable",
-    "toLocaleString", "toString", "valueOf", "__proto__",
-    "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__",
-    "at", "concat", "copyWithin", "entries", "every", "fill", "filter",
-    "find", "findIndex", "findLast", "findLastIndex", "flat", "flatMap",
-    "forEach", "includes", "indexOf", "join", "keys", "lastIndexOf", "length",
-    "map", "pop", "push", "reduce", "reduceRight", "reverse", "shift",
-    "slice", "some", "sort", "splice", "unshift", "values", "with",
-))
+# 撞名時開檔報「x.setId is not a function」。單一來源改自 bpmn_builder,
+# 避免兩份手抄漂移(20260810 審查修正);import 失敗則退回內建副本以保 standalone。
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from bpmn_builder import _JS_RESERVED as JS_RESERVED_IDS
+except Exception:
+    JS_RESERVED_IDS = frozenset((
+        "constructor", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable",
+        "toLocaleString", "toString", "valueOf", "__proto__",
+        "__defineGetter__", "__defineSetter__", "__lookupGetter__",
+        "__lookupSetter__",
+        "at", "concat", "copyWithin", "entries", "every", "fill", "filter",
+        "find", "findIndex", "findLast", "findLastIndex", "flat", "flatMap",
+        "forEach", "includes", "indexOf", "join", "keys", "lastIndexOf",
+        "length", "map", "pop", "push", "reduce", "reduceRight", "reverse",
+        "shift", "slice", "some", "sort", "splice", "unshift", "values", "with",
+    ))
 
 
 def files(args):

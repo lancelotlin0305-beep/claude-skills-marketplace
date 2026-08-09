@@ -138,13 +138,16 @@ def parse_page(diagram):
         nodes[cid] = dict(id=cid, t=t, kind=kind,
                           name=(c.get("value") or "").replace("\n", "\\n"),
                           pool=pk, lane=li, sub=sub, row=row, certain=certain)
-    flows, messages, assocs = [], [], []
+    flows, messages, assocs, dropped = [], [], [], []
     for cid, c in cells.items():
         if c.get("edge") != "1":
             continue
         s, tg = c.get("source"), c.get("target")
         if s not in nodes or tg not in nodes:
-            continue                     # 端點掛在框架/不明 cell,略過並於 show 提示
+            # 端點脫鉤(掛在框架/泳道外/不明 cell):收集並於 show/diff 警示,
+            # 不再靜默丟棄(20260810 審查修正:原 continue 使 diff 完全看不到)
+            dropped.append((cid, s, tg, (c.get("value") or "")))
+            continue
         lab = c.get("value") or ""
         st = c.get("style", "")
         if "endArrow=none" in st or "dashPattern=1 4" in st:
@@ -154,7 +157,8 @@ def parse_page(diagram):
         else:
             flows.append((s, tg, lab))
     return dict(name=diagram.get("name", ""), lanes=lanes, nodes=nodes,
-                flows=flows, messages=messages, assocs=assocs, unknown=unknown)
+                flows=flows, messages=messages, assocs=assocs,
+                unknown=unknown, dropped=dropped)
 
 
 def parse_file(path):
@@ -184,6 +188,10 @@ def show(path, page=None):
             print(f"  assoc({s!r}, {t!r}" + (f", \"{lab}\"" if lab else "") + ")")
         if pg["unknown"]:
             print("  ⚠ 落在泳道之外、未納入的形狀:", ", ".join(pg["unknown"]))
+        for cid, s, tg, lab in pg.get("dropped", []):
+            print(f"  ⚠ 端點脫鉤連線(未納入):{cid} {s}→{tg}"
+                  + (f" \"{lab}\"" if lab else "")
+                  + "  # 端點掛在框架/泳道外,請於 draw.io 重接")
 
 
 def diff(old_path, new_path):

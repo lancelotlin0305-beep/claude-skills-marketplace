@@ -53,7 +53,7 @@ MIN_LINE_GAP = 10                  # 平行連線最小間距門檻(< LINE_GAP,
                                    # 幾何用 12 錯開後不會自我觸發)
 FRAME_TOL = 4                      # 連線與框線(泳道邊界/pool 框/容器框)
                                    # 視為沿線重疊的距離容差;交錯(垂直穿越)
-                                   # 允許,沿線重疊不允許                       # 泳道子欄上限:雙子欄壓完仍超標時試三子欄,再寬不試
+                                   # 允許,沿線重疊不允許
 LANE_LABEL_H = 36
 ROW_H = 120
 TASK_W, TASK_H = 158, 66
@@ -100,6 +100,9 @@ EVDEF = {"message": "messageEventDefinition", "timer": "timerEventDefinition",
          "compensation": "compensateEventDefinition"}
 NONGRID_TS = ("input", "output", "note")   # 不佔流程格位
 ARTIFACT_TS = ("input", "output", "database")
+# flow() 合法 route(打錯字防呆);waypoints() 對未知值退化 _orth_down
+VALID_ROUTES = ("auto", "straight", "sideLeft", "sideRight", "enterRight",
+                "outLeft", "outRight", "backLoop", "bndSide")
 TASK_KINDS = ("user", "system", "subprocess", "generic",
               "send", "receive", "script", "call")
 
@@ -175,7 +178,10 @@ def _ncname(s):
 # 模型
 # ---------------------------------------------------------------------------
 class Proc:
-    def __init__(self, pid, name, lanes, ox=None, bands=None, version="V01.00"):
+    # bands/version/ox 一律關鍵字-only(20260810 審查修正):原第 4 位置參數是
+    # ox,使用者若照文件用位置參數傳 bands 會被靜默塞進 ox、bands 落空。ox 僅
+    # 由 Collab 於加入 pool 後以屬性設定,不需位置傳入。
+    def __init__(self, pid, name, lanes, *, bands=None, version="V01.00", ox=None):
         self.pid = str(pid)        # 檔名/顯示用,可含中文
         self.xid = _ncname(pid)    # XML 專用 id:ASCII NCName(bpmn.io 要求)
         self.name = name
@@ -225,6 +231,14 @@ class Proc:
         kind: gateway → exclusive(預設,素菱形)/parallel/inclusive/event(事件型)
               task    → generic(預設,白)/user(綠)/system(藍)/subprocess(紫)/
                         send/receive/script/call(呼叫活動,粗框)"""
+        # lane 是「角色泳道」整數索引(0~N-1);系統分區請用建構子 bands=。
+        # 不驗證會讓越界/字串一路帶到座標計算才出錯(20260810 審查修正)
+        if not isinstance(lane, int) or isinstance(lane, bool) \
+                or not 0 <= lane < len(self.lanes):
+            raise ValueError(
+                f"add({nid!r}) 的 lane={lane!r} 無效:lane 是角色泳道索引 "
+                f"0~{len(self.lanes) - 1}(共 {len(self.lanes)} 道)。"
+                f"系統分區(band)請用建構子 bands=[...],勿與 lane 混用。")
         nid = _ncname(nid)
         if kind is None:
             kind = "exclusive" if t == "gateway" else \
@@ -341,6 +355,11 @@ class Proc:
         n["y"] = row_y(n["row"]) + (ROW_H - n["h"]) // 2
 
     def flow(self, src, tgt, label="", route="auto"):
+        # route 打錯字原會在 waypoints 靜默退化為 _orth_down;此處驗證(20260810)
+        if route not in VALID_ROUTES:
+            raise ValueError(
+                f"flow({src!r}→{tgt!r}) 的 route={route!r} 無效,"
+                f"只能是 {sorted(VALID_ROUTES)}")
         fid = "f_%d" % (len(self.flows) + 1)
         self.flows.append((fid, _ncname(src), _ncname(tgt), label, route))
 
@@ -465,10 +484,12 @@ def waypoints(s, t, route):
             edge_n = s if s["lane"] == ln else t
             # 讓位軌佔用讓位:左廊有 k 條 bndSide 讓位軌時外移 k×LINE_GAP,
             # 落在讓位軌之外的乾淨軌位(空間由修正輪 lane_pad 加寬提供)
-            cx = edge_n.get("_lane_left",
-                            ox + POOL_HEADER_W + ln * LANE_W) + 14 \
-                 + LINE_GAP * edge_n.get("_bndL", 0)
-            cx = near.get(("sideLeft", t["id"]), cx)
+            base_l = edge_n.get("_lane_left",
+                                ox + POOL_HEADER_W + ln * LANE_W) + 14 \
+                + LINE_GAP * edge_n.get("_bndL", 0)
+            # 就近化須在讓位軌(bndL)之外再收緊,不可整個覆寫吞掉讓位量
+            # (20260810 審查修正):取 max,保證同時清讓位軌與障礙外緣
+            cx = max(near.get(("sideLeft", t["id"]), base_l), base_l)
             sp, tp = ps["left"], pt["left"]
         return [sp, (cx, sp[1]), (cx, tp[1]), tp]
     if route == "outLeft":
@@ -499,7 +520,11 @@ def waypoints(s, t, route):
         if ln > 0 and lane_left - 20 > pool_left:
             cx = max(lane_left - 20 - blt * 2 * LINE_GAP, pool_left)
         else:
-            cx = pool_left + blt * 2 * LINE_GAP
+            # lane0 無左鄰、只能向右內移;跨度大者(_blt 大)須佔最外(最左=
+            # pool 內緣),故以 (maxblt-blt) 反向排,維持大跨度在外不與內圈交叉
+            # (20260810 審查修正:原 pool_left+blt*gap 把大跨度塞內圈致交叉)
+            maxblt = s.get("_blt_max", blt)
+            cx = pool_left + (maxblt - blt) * 2 * LINE_GAP
         return [ps["left"], (cx, ps["left"][1]), (cx, pt["left"][1]), pt["left"]]
     # auto:正交折線
     return _orth_down(ps, pt)
@@ -1462,8 +1487,10 @@ def _assign_backloop_tracks(p):
     # 深源=跨度大=外軌,結果一致;並額外正確處理不同目標的巢狀回線。
     keyed = [(max(tr, sr) - min(tr, sr), min(tr, sr), fid, s)
              for tr, sr, fid, s in loops]
-    for i, (_w, _lo, _fid, s) in enumerate(sorted(keyed)):
+    sk = sorted(keyed)
+    for i, (_w, _lo, _fid, s) in enumerate(sk):
         p.nodes[s]["_blt"] = i
+        p.nodes[s]["_blt_max"] = len(sk) - 1
 
 
 def _stash_bnd_tracks(p):
@@ -1754,6 +1781,10 @@ def _auto_routes(p):
             used_ports.setdefault(node, []).append(
                 (round(pt[0]), round(pt[1])))
     p.flows = new
+    # 回線配軌重算(20260810 審查修正):選路前的配軌把所有 T.row<S.row 的
+    # auto 邊都算進去,凡改走側通道者其 _blt 白佔、使真正 backLoop 拿到有洞
+    # 的巢狀序。選路定案後只對最終 rt=="backLoop" 的邊重排、給密實軌號。
+    _assign_backloop_tracks(p)
 
     # 第二輪精修:第一輪為貪婪(先決定的邊看不到後面的邊),此輪在
     # 全景已知下逐條重試候選,能消除「先手選了會與後手交叉」的殘餘。
@@ -2686,6 +2717,12 @@ def _ensure(x):
     p = x
     if not p.nodes:
         raise ValueError("流程沒有任何節點;請先用 add() 加入節點再輸出。")
+    # band 成員 id 拼錯原會靜默略過(分區直接消失);此處警示(20260810)
+    _missing = [(bn, i) for bn, ids in p.bands for i in ids
+                if i not in p.nodes]
+    if _missing:
+        print("⚠ bands 成員 id 不存在(該節點不會納入分區,請檢查拼字):"
+              + ", ".join(f"{bn}:{i}" for bn, i in _missing))
     if p.ox is None:
         p.ox = POOL_X
     if any(n["row"] is None for n in p.nodes.values()
@@ -2984,7 +3021,10 @@ def build_bpmn(x):
     pools, mflows = _pools_mflows(x)
     cid = x.xid if isinstance(x, Collab) else "collab_" + x.xid
     defs_id = x.xid if isinstance(x, Collab) else x.xid
-    return _pools_bpmn(pools, mflows, defs_id, cid, x.name,
+    # 版號寫入 collaboration name,使手改 .bpmn 回傳時仍能辨識版本
+    # (20260810 審查修正:原 .bpmn 完全無版號/標題)
+    nm = f"{x.name} {x.version}" if getattr(x, "version", None) else x.name
+    return _pools_bpmn(pools, mflows, defs_id, cid, nm,
                        bb=getattr(x, "_bb_geo", ()))
 
 
@@ -3289,6 +3329,17 @@ def build_drawio_multi(diagrams):
     draw.io 開啟後底部有頁籤可切換;各頁 id 依序 d1, d2, ...。"""
     if not diagrams:
         raise ValueError("沒有任何流程圖;請至少提供一個 Proc / Collab。")
+    # 跨頁節點 id 重複會讓 draw.io 連線錯亂;下沉檢查至此,直接呼叫本 API
+    # 也受保護(20260810 審查修正:原僅 emit_multi 有防呆)
+    _seen, _dup = set(), set()
+    for x in diagrams:
+        for pr in _pools_mflows(x)[0]:
+            for nid in pr.nodes:
+                (_dup if nid in _seen else _seen).add(nid)
+    if _dup:
+        raise ValueError(
+            "多頁 .drawio 節點 id 跨圖重複(會使連線錯亂),請加頁前綴區隔:"
+            + ", ".join(sorted(_dup)))
     pages = [_drawio_page_xml(x, "d%d" % (i + 1))
              for i, x in enumerate(diagrams)]
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -3901,8 +3952,7 @@ def build_viewer_html_multi(diagrams, title, svgs=None):
         # 多張 SVG 同頁內嵌:defs 內 id(arr/mfarr/mfdot 等)跨頁重複時,
         # url(#id) 一律解析到文件第一個定義;若該頁 display:none,
         # 引用它的箭頭不會繪製 → 每頁 id 加前綴隔離。
-        import re as _re
-        for _id in set(_re.findall(r'id="([A-Za-z][\w-]*)"', svg)):
+        for _id in set(re.findall(r'id="([A-Za-z][\w-]*)"', svg)):
             svg = svg.replace('id="%s"' % _id, 'id="p%d_%s"' % (i, _id)) \
                      .replace('url(#%s)' % _id, 'url(#p%d_%s)' % (i, _id)) \
                      .replace('href="#%s"' % _id, 'href="#p%d_%s"' % (i, _id))
@@ -4142,6 +4192,39 @@ def _git_mode(outdir):
         d = nd
 
 
+_PORTABLE_PRELUDE = '''import os as _os, sys as _sys  # scripts 定位(可攜化 by emit)
+_cands = [_os.environ.get("GEO_BPMN_SCRIPTS"), %r]
+_mk = _os.path.expanduser(_os.path.join("~", ".claude", "plugins", "marketplaces"))
+if _os.path.isdir(_mk):
+    for _root, _dirs, _files in _os.walk(_mk):
+        if "bpmn_builder.py" in _files and _os.path.basename(_root) == "scripts":
+            _cands.insert(1, _root); break
+for _p in _cands:
+    if _p and _os.path.isfile(_os.path.join(_p, "bpmn_builder.py")):
+        _sys.path.insert(0, _p); break
+'''
+_SYSPATH_RE = re.compile(
+    r'^sys\.path\.insert\(\s*0\s*,\s*r?["\'](.*?)["\']\s*\)\s*$', re.M)
+
+
+def _copy_def(src, dst):
+    """複製定義檔為 _流程定義.py;把硬編/相對的 sys.path.insert 那行改寫成
+    可攜定位(環境變數 GEO_BPMN_SCRIPTS → marketplace 探測 → 原路徑 fallback),
+    使產出檔換機/plugin 更新後仍能原地重跑(20260810 審查修正)。
+    找不到該行則原樣複製。"""
+    import shutil
+    try:
+        with open(src, encoding="utf-8") as f:
+            txt = f.read()
+    except Exception:
+        shutil.copyfile(src, dst); return
+    m = _SYSPATH_RE.search(txt)
+    if m:
+        txt = txt[:m.start()] + (_PORTABLE_PRELUDE % m.group(1)).rstrip() + txt[m.end():]
+    with open(dst, "w", encoding="utf-8") as f:
+        f.write(txt)
+
+
 def emit_multi(diagrams, project, outdir=".", version="V01.00", src=None,
                change=None, change_kind=None, change_source=None,
                xml=True, svg=True, viewer=True, git=None):
@@ -4198,12 +4281,11 @@ def emit_multi(diagrams, project, outdir=".", version="V01.00", src=None,
             build_viewer_html_multi(diagrams, f"{project} {version} 檢視器",
                                     svgs=[r[5] for r in rendered]))
     if src:
-        import shutil
         dst = base + "_流程定義.py"
         if not os.path.exists(src):
             print(f"⚠ 找不到定義檔 src={src!r},略過複製 _流程定義.py(其餘交付物照常產出)")
         elif os.path.abspath(src) != os.path.abspath(dst):
-            shutil.copyfile(src, dst)
+            _copy_def(src, dst)
     _write_changelog_row(project, project, version, outdir,
                          change, change_kind, change_source)
     results = {}
@@ -4274,12 +4356,11 @@ def emit(x, outdir=".", viewer=True, src=None, fmt="drawio",
     if viewer:
         open(base + "_檢視器.html", "w", encoding="utf-8").write(build_viewer_html(x))
     if src:
-        import shutil
         dst = base + "_流程定義.py"
         if not os.path.exists(src):
             print(f"⚠ 找不到定義檔 src={src!r},略過複製 _流程定義.py(其餘交付物照常產出)")
         elif os.path.abspath(src) != os.path.abspath(dst):
-            shutil.copyfile(src, dst)
+            _copy_def(src, dst)
     _write_changelog(x, outdir, change, change_kind, change_source)
     name = stem if use_git else stem + "_" + x.version
     _print_page_report(f"written: {name}", sem, problems,
