@@ -3760,10 +3760,12 @@ def build_svg(x, pad_aspect=True):
         vx -= (nw - vw) // 2
         vw = nw
 
-    s = [f'<svg xmlns="http://www.w3.org/2000/svg" '
+    s = [f'<svg xmlns="http://www.w3.org/2000/svg" role="img" '
+         f'aria-label={quoteattr(_clean(title))} '
          f'viewBox="{vx} {vy} {vw} {vh}" '
          + ('data-pad="capped" ' if pad_capped else '')
          + f'font-family="Microsoft JhengHei, PingFang TC, Noto Sans CJK TC, sans-serif">']
+    s.append(f'<title>{escape(_clean(title))}</title>')   # 螢幕閱讀器可讀圖名(無障礙)
     s.append(f'<rect x="{vx}" y="{vy}" width="{vw}" height="{vh}" fill="#ffffff"/>')
     s.append(f'<text x="{left}" y="{POOL_Y-20}" font-size="19" font-weight="bold" '
              f'fill="#1f2d3d">{escape(title)}</text>')
@@ -3923,15 +3925,17 @@ _VIEWER_TMPL = """<!DOCTYPE html>
 html,body{margin:0;height:100%;overflow:hidden;background:#f5f6f8;font-family:sans-serif}
 #bar{position:fixed;top:10px;left:10px;z-index:9;background:#fffc;border:1px solid #ccc;
 border-radius:8px;padding:6px 12px;font-size:13px;color:#333}
-#stage{width:100%;height:100%;cursor:grab}
+#stage{width:100%;height:100%;cursor:grab;touch-action:none;outline:none}
 #stage:active{cursor:grabbing}
+#stage:focus-visible{box-shadow:inset 0 0 0 3px #2a3a49}
+#q:focus-visible{outline:2px solid #2a3a49;outline-offset:1px}
 #inner{transform-origin:0 0}
 #inner svg{display:block}
 </style></head><body>
-<div id="bar">滾輪縮放｜拖曳平移｜雙擊重置｜
-<input id="q" type="search" placeholder="搜尋節點文字" style="font-size:12px;padding:2px 6px;border:1px solid #bbb;border-radius:6px">
-<span id="hits" style="color:#889"></span></div>
-<div id="stage"><div id="inner">__SVG__</div></div>
+<div id="bar">滾輪/±鍵縮放｜拖曳/方向鍵平移｜雙擊/0 重置｜
+<input id="q" type="search" placeholder="搜尋節點文字" aria-label="搜尋節點文字" style="font-size:12px;padding:2px 6px;border:1px solid #bbb;border-radius:6px">
+<span id="hits" style="color:#556" aria-live="polite"></span></div>
+<div id="stage" tabindex="0" role="application" aria-label="流程圖檢視器:滾輪或加減鍵縮放,拖曳或方向鍵平移,雙擊或 0 鍵重置,可用觸控雙指縮放"><div id="inner">__SVG__</div></div>
 <script>
 const stage=document.getElementById('stage'),inner=document.getElementById('inner');
 const svg=inner.querySelector('svg'),vb=svg.viewBox.baseVal;
@@ -3972,9 +3976,33 @@ stage.addEventListener('wheel',e=>{e.preventDefault();
  const k=e.deltaY<0?1.15:1/1.15,r=stage.getBoundingClientRect();
  const mx=e.clientX-r.left,my=e.clientY-r.top;
  tx=mx-(mx-tx)*k; ty=my-(my-ty)*k; s*=k; apply();},{passive:false});
-stage.addEventListener('mousedown',e=>{drag=true;sx=e.clientX-tx;sy=e.clientY-ty;});
-window.addEventListener('mousemove',e=>{if(drag){tx=e.clientX-sx;ty=e.clientY-sy;apply();}});
-window.addEventListener('mouseup',()=>drag=false);
+// Pointer Events(滑鼠+觸控+筆)+ 雙指 pinch,取代舊 mouse-only(手機可操作)
+const ptrs=new Map();let pinch=null;
+stage.addEventListener('pointerdown',e=>{stage.setPointerCapture(e.pointerId);
+ ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});stage.focus();
+ if(ptrs.size===1){drag=true;sx=e.clientX-tx;sy=e.clientY-ty;}
+ else if(ptrs.size===2){drag=false;const p=[...ptrs.values()];
+  pinch={d:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),mx:(p[0].x+p[1].x)/2,my:(p[0].y+p[1].y)/2};}});
+stage.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;
+ ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(ptrs.size===2&&pinch){const p=[...ptrs.values()];
+  const d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),k=d/(pinch.d||d);
+  const r=stage.getBoundingClientRect(),mx=pinch.mx-r.left,my=pinch.my-r.top;
+  tx=mx-(mx-tx)*k;ty=my-(my-ty)*k;s*=k;pinch.d=d;apply();}
+ else if(drag){tx=e.clientX-sx;ty=e.clientY-sy;apply();}});
+function _up(e){if(ptrs.has(e.pointerId))ptrs.delete(e.pointerId);
+ if(ptrs.size<2)pinch=null;
+ if(ptrs.size===0)drag=false;
+ else{const p=[...ptrs.values()][0];sx=p.x-tx;sy=p.y-ty;drag=true;}}
+stage.addEventListener('pointerup',_up);stage.addEventListener('pointercancel',_up);
+stage.addEventListener('keydown',e=>{let k=0;const P=40;
+ if(e.key==='+'||e.key==='=')k=1.15;else if(e.key==='-'||e.key==='_')k=1/1.15;
+ else if(e.key==='ArrowLeft')tx+=P;else if(e.key==='ArrowRight')tx-=P;
+ else if(e.key==='ArrowUp')ty+=P;else if(e.key==='ArrowDown')ty-=P;
+ else if(e.key==='0'){fit();e.preventDefault();return;}else return;
+ e.preventDefault();
+ if(k){const w=stage.clientWidth/2,h=stage.clientHeight/2;tx=w-(w-tx)*k;ty=h-(h-ty)*k;s*=k;}
+ apply();});
 stage.addEventListener('dblclick',fit);
 window.addEventListener('resize',fit);
 fit();
@@ -4024,15 +4052,18 @@ html,body{margin:0;height:100%;overflow:hidden;font-family:"Microsoft JhengHei",
      padding:6px 10px;font-size:12.5px;color:#556;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .tab{font-size:12.5px;padding:3px 10px;border:1px solid #bbb;border-radius:14px;background:#fff;cursor:pointer}
 .tab.on{background:#2a3a49;color:#fff;border-color:#2a3a49}
-#stage{position:absolute;top:44px;bottom:0;left:0;right:0;overflow:hidden;background:#eef0f3;cursor:grab}
+.tab:focus-visible{outline:2px solid #2a3a49;outline-offset:1px}
+#stage{position:absolute;top:44px;bottom:0;left:0;right:0;overflow:hidden;background:#eef0f3;cursor:grab;touch-action:none;outline:none}
 #stage.g{cursor:grabbing}
+#stage:focus-visible{box-shadow:inset 0 0 0 3px #2a3a49}
 .page{position:absolute;transform-origin:0 0;display:none}
 .page.on{display:block}
 #q{font-size:12px;padding:2px 6px;border:1px solid #bbb;border-radius:6px;margin-left:auto}
+#q:focus-visible{outline:2px solid #2a3a49;outline-offset:1px}
 </style></head><body>
-<div id="bar">__TABS__<input id="q" type="search" placeholder="搜尋節點文字"><span id="hits" style="color:#889"></span>
-<span style="color:#99a">滾輪縮放｜拖曳平移｜雙擊重置</span></div>
-<div id="stage">__PAGES__</div>
+<div id="bar">__TABS__<input id="q" type="search" placeholder="搜尋節點文字" aria-label="搜尋節點文字"><span id="hits" style="color:#556" aria-live="polite"></span>
+<span style="color:#778">滾輪/±縮放｜拖曳/方向鍵平移｜雙擊/0 重置</span></div>
+<div id="stage" tabindex="0" role="application" aria-label="流程圖檢視器:滾輪或加減鍵縮放,拖曳或方向鍵平移,雙擊或 0 鍵重置,可用觸控雙指縮放">__PAGES__</div>
 <script>
 const stage=document.getElementById('stage');
 const pages=[...document.querySelectorAll('.page')],tabs=[...document.querySelectorAll('.tab')];
@@ -4051,10 +4082,33 @@ stage.addEventListener('wheel',e=>{e.preventDefault();const a=st[cur];
   const f=e.deltaY<0?1.15:1/1.15;const r=stage.getBoundingClientRect();
   const mx=e.clientX-r.left,my=e.clientY-r.top;
   a.tx=mx-(mx-a.tx)*f;a.ty=my-(my-a.ty)*f;a.s*=f;apply(cur);},{passive:false});
-stage.addEventListener('mousedown',e=>{drag=true;sx=e.clientX;sy=e.clientY;stage.classList.add('g');});
-window.addEventListener('mousemove',e=>{if(!drag)return;const a=st[cur];
-  a.tx+=e.clientX-sx;a.ty+=e.clientY-sy;sx=e.clientX;sy=e.clientY;apply(cur);});
-window.addEventListener('mouseup',()=>{drag=false;stage.classList.remove('g');});
+// Pointer Events + 雙指 pinch(手機可操作),作用於當前頁 st[cur]
+const ptrs=new Map();let pinch=null;
+stage.addEventListener('pointerdown',e=>{stage.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});stage.focus();
+  if(ptrs.size===1){drag=true;sx=e.clientX;sy=e.clientY;stage.classList.add('g');}
+  else if(ptrs.size===2){drag=false;const p=[...ptrs.values()];
+    pinch={d:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),mx:(p[0].x+p[1].x)/2,my:(p[0].y+p[1].y)/2};}});
+stage.addEventListener('pointermove',e=>{if(!ptrs.has(e.pointerId))return;
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});const a=st[cur];
+  if(ptrs.size===2&&pinch){const p=[...ptrs.values()];
+    const d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),k=d/(pinch.d||d);
+    const r=stage.getBoundingClientRect(),mx=pinch.mx-r.left,my=pinch.my-r.top;
+    a.tx=mx-(mx-a.tx)*k;a.ty=my-(my-a.ty)*k;a.s*=k;pinch.d=d;apply(cur);}
+  else if(drag){a.tx+=e.clientX-sx;a.ty+=e.clientY-sy;sx=e.clientX;sy=e.clientY;apply(cur);}});
+function _up(e){if(ptrs.has(e.pointerId))ptrs.delete(e.pointerId);
+  if(ptrs.size<2)pinch=null;
+  if(ptrs.size===0){drag=false;stage.classList.remove('g');}
+  else{const p=[...ptrs.values()][0];sx=p.x;sy=p.y;drag=true;}}
+stage.addEventListener('pointerup',_up);stage.addEventListener('pointercancel',_up);
+stage.addEventListener('keydown',e=>{const a=st[cur];let k=0;const P=40;
+  if(e.key==='+'||e.key==='=')k=1.15;else if(e.key==='-'||e.key==='_')k=1/1.15;
+  else if(e.key==='ArrowLeft')a.tx+=P;else if(e.key==='ArrowRight')a.tx-=P;
+  else if(e.key==='ArrowUp')a.ty+=P;else if(e.key==='ArrowDown')a.ty-=P;
+  else if(e.key==='0'){fit(cur);e.preventDefault();return;}else return;
+  e.preventDefault();
+  if(k){const w=stage.clientWidth/2,h=stage.clientHeight/2;a.tx=w-(w-a.tx)*k;a.ty=h-(h-a.ty)*k;a.s*=k;}
+  apply(cur);});
 stage.addEventListener('dblclick',()=>fit(cur));
 window.addEventListener('resize',()=>fit(cur));
 const q=document.getElementById('q'),hitEl=document.getElementById('hits');

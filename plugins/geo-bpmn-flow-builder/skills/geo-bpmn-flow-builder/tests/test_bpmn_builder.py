@@ -169,6 +169,26 @@ def test_roundtrip_bpmn(tmp_path=None):
 
 
 # ---------------------------------------------------------------------------
+# 無障礙 / 行動裝置(檢視器與 SVG)
+# ---------------------------------------------------------------------------
+def test_svg_has_aria_and_title():
+    svg = B.build_svg(_EX.build_auto())
+    assert 'role="img"' in svg and "aria-label=" in svg, "SVG 根須有 role/aria-label"
+    assert "<title>" in svg, "SVG 須含 <title> 供螢幕閱讀器"
+
+
+def test_viewer_touch_keyboard_aria():
+    for html in (B.build_viewer_html(_EX.build_auto()),
+                 B.build_viewer_html_multi([_EX.build_auto(), _EX.build_bands()],
+                                           "多頁")):
+        assert "pointerdown" in html and "pointermove" in html, "須支援 Pointer/觸控"
+        assert "Math.hypot" in html, "須有雙指 pinch 距離計算"
+        assert 'role="application"' in html and "tabindex" in html, "stage 須可鍵盤聚焦"
+        assert "ArrowLeft" in html and "keydown" in html, "須支援鍵盤平移/縮放"
+        assert 'aria-live="polite"' in html, "命中數須 aria-live 播報"
+
+
+# ---------------------------------------------------------------------------
 # 內建 runner(免 pytest)
 # ---------------------------------------------------------------------------
 def _run():
