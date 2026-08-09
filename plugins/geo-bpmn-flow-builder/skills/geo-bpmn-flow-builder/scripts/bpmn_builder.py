@@ -11,6 +11,8 @@
 公開 API:
   Proc(pid, name, lanes, *, bands=None, version="V01.00")   # bands/version 具名傳入
   Proc(pid, name, simple=True)                 # 簡易流程圖:不套泳道,只畫節點+連線
+  Proc(pid, name, lanes, horizontal=True)      # 橫式:流程左→右,泳道成上下橫帶
+                                               #   (可與 simple 併用;預設直式)
     .add(id, type, name, lane, row=None, dx=0, kind="exclusive")
         type: start / end / gateway / task
         kind(僅 gateway): exclusive(預設) / parallel / inclusive
@@ -200,10 +202,13 @@ class Proc:
     # ox,使用者若照文件用位置參數傳 bands 會被靜默塞進 ox、bands 落空。ox 僅
     # 由 Collab 於加入 pool 後以屬性設定,不需位置傳入。
     def __init__(self, pid, name, lanes=None, *, bands=None, version="V01.00",
-                 ox=None, simple=False):
+                 ox=None, simple=False, horizontal=False):
         # simple=True:簡易流程圖,不套 BPMN 泳道(無 pool 外框/泳道分隔/分區),
         # 只畫節點+連線;lanes 可省略(內部用單一隱藏泳道),add() 的 lane 可省。
+        # horizontal=True:橫式版面(流程左→右,泳道成上下橫帶);重用直式引擎
+        # 的 row/sub/lane 邏輯結構,佈局後改以橫式座標放置+路由(隔離、不動直式)。
         self.simple = simple
+        self.horizontal = horizontal
         if lanes is None:
             if not simple:
                 raise ValueError("非簡易模式需指定 lanes(角色泳道);"
@@ -1074,7 +1079,9 @@ def _check_placed(x):
                   "y": n["y"] + n["h"] + 4,
                   "w": lw, "h": len(lines) * 13 + 4,
                   "name": n["name"] + "(標籤)"}
-            if lb["x"] + lb["w"] > pr or lb["x"] < proc.ox:
+            if not (proc.simple or getattr(proc, "horizontal", False)) \
+                    and (lb["x"] + lb["w"] > pr or lb["x"] < proc.ox):
+                # 簡易/橫式無直式 pool 界,此「超出 pool 邊緣」檢核不適用
                 issues.append(f"標籤超出 pool 邊緣:「{n['name']}」(建議縮短名稱或調整泳道)")
             for m in proc.nodes.values():
                 if m["id"] != n["id"] and _boxes_overlap(lb, m):
@@ -2799,6 +2806,126 @@ def _ensure(x):
             p._place(nid)
         _stash_bnd_tracks(p)   # 手動佈局指定 sideLeft 亦需讓位軌佔用資訊
         _assign_backloop_tracks(p)   # 手動佈局的 backLoop 亦需軌位
+    if p.horizontal:           # 橫式:重用上面算好的 row/sub/lane,改橫式放置+路由
+        _apply_horizontal(p)
+
+
+H_COL = 210        # 橫式:每 row(流程深度)的水平間距
+H_SUBH = 100       # 橫式:每 sub(泳道內子軌)的垂直間距
+H_HDR = 96         # 橫式:左側泳道標頭欄寬(simple 模式為 0)
+H_TITLE = 46       # 橫式:圖頂標題帶高
+
+
+def _apply_horizontal(p):
+    """橫式版面:沿用直式引擎已算好的 row/sub/lane(方向無關的邏輯結構),
+    改以橫式座標重新放置(流程左→右、泳道成上下橫帶),並以橫式路由重算
+    連線 waypoints 存入 p.wps_override。與直式引擎完全隔離,不影響既有直式。"""
+    ox = POOL_X if p.ox is None else p.ox
+    hdr = 0 if p.simple else H_HDR
+    grid = [n for n in p.nodes.values()
+            if n["t"] not in NONGRID_TS and not n.get("attach")]
+    # 每泳道子軌數(取該泳道 grid 節點最大 sub)、泳道高與頂 y
+    nsub = {}
+    for n in grid:
+        nsub[n["lane"]] = max(nsub.get(n["lane"], 0), n.get("sub", 0))
+    top0 = POOL_Y + H_TITLE
+    lane_top, lane_h, yy = {}, {}, top0
+    for i in range(len(p.lanes)):
+        lane_h[i] = (nsub.get(i, 0) + 1) * H_SUBH
+        lane_top[i] = yy
+        yy += lane_h[i]
+    p._h_lane_top, p._h_lane_h, p._h_hdr = lane_top, lane_h, hdr
+    p._h_bottom = yy
+    base_x = ox + hdr + 20
+    maxrow = max((n["row"] for n in p.nodes.values()
+                  if n.get("row") is not None), default=0)
+    p._h_right = base_x + (maxrow + 1) * H_COL
+
+    def place(n):
+        r = n.get("row") or 0
+        li = n["lane"]
+        n["ox"] = ox
+        n["x"] = int(base_x + r * H_COL + (H_COL - n["w"]) / 2)
+        n["y"] = int(lane_top.get(li, top0) + n.get("sub", 0) * H_SUBH
+                     + (H_SUBH - n["h"]) / 2)
+        # 橫式泳道為 y 帶;把直式的 x 界(_lane_left/right)設成該泳道 y 界,
+        # 使「節點壓泳道線」檢核(比對節點是否超出所屬泳道)在橫式改比 y
+        n["_lane_top_h"] = lane_top.get(li, top0)
+        n["_lane_bot_h"] = lane_top.get(li, top0) + lane_h.get(li, H_SUBH)
+        n["_lane_left"] = base_x - 10          # 橫式 x 不設限(避免直式界誤判)
+        n["_lane_right"] = p._h_right + 10
+
+    for n in grid:
+        place(n)
+    for n in p.nodes.values():          # 工件(input/output/note)沿用其 row/sub/lane
+        if n["t"] in NONGRID_TS and not n.get("attach"):
+            place(n)
+    for n in p.nodes.values():          # 邊界事件:貼宿主底邊
+        if n.get("attach") and n["attach"] in p.nodes:
+            h = p.nodes[n["attach"]]
+            n["ox"] = ox
+            n["x"] = int(h["x"] + h["w"] / 2 - n["w"] / 2)
+            n["y"] = int(h["y"] + h["h"] - n["h"] / 2)
+    p.wps_override = _route_h(p)
+
+
+def _seg_hits_any(p, x1, y1, x2, y2, skip):
+    """水平/垂直線段是否穿過任一 grid 節點(skip 內 id 除外)。"""
+    for nid, n in p.nodes.items():
+        if nid in skip or n["t"] in NONGRID_TS or n.get("x") is None:
+            continue
+        bx1, by1, bx2, by2 = n["x"] - 4, n["y"] - 4, n["x"] + n["w"] + 4, n["y"] + n["h"] + 4
+        if abs(y1 - y2) < 1e-6:           # 水平段
+            if by1 <= y1 <= by2 and not (max(x1, x2) < bx1 or min(x1, x2) > bx2):
+                return True
+        elif abs(x1 - x2) < 1e-6:         # 垂直段
+            if bx1 <= x1 <= bx2 and not (max(y1, y2) < by1 or min(y1, y2) > by2):
+                return True
+    return False
+
+
+def _route_h(p):
+    """橫式正交路由(v1):前向直線;會穿過中間節點者走上方繞行通道;
+    同源多出邊(閘道)分埠(右/上/下)避免共點;回頭邊走上方通道繞回。"""
+    ov = {}
+    top0 = POOL_Y + H_TITLE
+    # 同源出邊數(閘道分支分埠用)
+    outs = {}
+    for fid, s, tg, lab, rt in p.flows:
+        outs.setdefault(s, []).append(fid)
+    for fid, s, tg, lab, rt in p.flows:
+        S, T = p.nodes.get(s), p.nodes.get(tg)
+        if not S or not T or S.get("x") is None or T.get("x") is None:
+            continue
+        scy, tcy = S["y"] + S["h"] / 2, T["y"] + T["h"] / 2
+        sr = (S["x"] + S["w"], scy)
+        tl = (T["x"], tcy); tt = (T["x"] + T["w"] / 2, T["y"])
+        sib = outs.get(s, [])
+        if T["x"] > S["x"] + 1:           # 前向(右)
+            straight_clear = abs(scy - tcy) < 2 and not _seg_hits_any(
+                p, sr[0], scy, tl[0], tcy, {s, tg})
+            if straight_clear:
+                ov[fid] = [sr, tl]
+                continue
+            # 走上方繞行通道(避開中間節點):出頂 → 上方通道 → 目標頂
+            # 多分支者各佔一軌,依 fid 在同源出邊的序錯開
+            k = sib.index(fid) if fid in sib else 0
+            ch = top0 - 16 - k * 14
+            st = (S["x"] + S["w"] / 2, S["y"])
+            # 若跨 y 帶且直線可達(中間無節點),走 L 折線較短
+            mx = (S["x"] + S["w"] + T["x"]) / 2
+            if not _seg_hits_any(p, sr[0], scy, mx, scy, {s, tg}) and \
+               not _seg_hits_any(p, mx, scy, mx, tcy, {s, tg}) and \
+               not _seg_hits_any(p, mx, tcy, tl[0], tcy, {s, tg}):
+                ov[fid] = [sr, (mx, scy), (mx, tcy), tl]
+            else:
+                ov[fid] = [st, (st[0], ch), (tt[0], ch), tt]
+        else:                              # 回頭邊/同欄:走上方通道繞回
+            k = sib.index(fid) if fid in sib else 0
+            ch = top0 - 16 - k * 14
+            st = (S["x"] + S["w"] / 2, S["y"])
+            ov[fid] = [st, (st[0], ch), (tt[0], ch), tt]
+    return ov
 
 
 # ---------------------------------------------------------------------------
@@ -2918,21 +3045,43 @@ POOL_TITLE_BAND = 36               # bpmn.io 垂直 pool 的參與者名稱帶�
 
 def _pool_di_xml(proc, pidx, pool_h):
     di = []
-    di.append(
-        f'      <bpmndi:BPMNShape id="di_pool_{pidx}" bpmnElement="part_{pidx}" isHorizontal="false">\n'
-        f'        <dc:Bounds x="{proc.ox}" y="{POOL_Y - POOL_TITLE_BAND}" '
-        f'width="{proc.pool_width()}" height="{pool_h + POOL_TITLE_BAND}"/>\n'
-        f'      </bpmndi:BPMNShape>')
-    lane_range = [] if proc.simple else range(len(proc.lanes))  # 簡易:無泳道 DI
-    for i in lane_range:
-        # bpmn.io 的參與者名稱在頂帶,SVG 的左側直條(POOL_HEADER_W)在此無用途,
-        # 若照搬會在 pool 左緣留一條 30px 空縫;讓第一泳道向左延伸吃掉它。
-        lx = proc._lane_x(i) - (POOL_HEADER_W if i == 0 else 0)
-        lw = proc.lane_width(i) + (POOL_HEADER_W if i == 0 else 0)
+    if getattr(proc, "horizontal", False) and not proc.simple:
+        # 橫式:pool/泳道水平帶(isHorizontal="true"),幾何取橫式佈局結果
+        hdr = getattr(proc, "_h_hdr", H_HDR)
+        lane_top = getattr(proc, "_h_lane_top", {})
+        lane_h = getattr(proc, "_h_lane_h", {})
+        top0 = POOL_Y + H_TITLE
+        right = getattr(proc, "_h_right", proc.ox + 400)
+        bottom = getattr(proc, "_h_bottom", top0 + 200)
         di.append(
-            f'      <bpmndi:BPMNShape id="di_lane_{pidx}_{i}" bpmnElement="lane_{pidx}_{i}" isHorizontal="false">\n'
-            f'        <dc:Bounds x="{lx}" y="{POOL_Y}" width="{lw}" height="{pool_h}"/>\n'
+            f'      <bpmndi:BPMNShape id="di_pool_{pidx}" bpmnElement="part_{pidx}" isHorizontal="true">\n'
+            f'        <dc:Bounds x="{proc.ox}" y="{top0}" '
+            f'width="{right - proc.ox}" height="{bottom - top0}"/>\n'
             f'      </bpmndi:BPMNShape>')
+        for i in range(len(proc.lanes)):
+            ly = lane_top.get(i, top0); lh = lane_h.get(i, H_SUBH)
+            lx = proc.ox + (0 if i == 0 else hdr)
+            lw = right - proc.ox - (0 if i == 0 else hdr)
+            di.append(
+                f'      <bpmndi:BPMNShape id="di_lane_{pidx}_{i}" bpmnElement="lane_{pidx}_{i}" isHorizontal="true">\n'
+                f'        <dc:Bounds x="{lx}" y="{ly}" width="{lw}" height="{lh}"/>\n'
+                f'      </bpmndi:BPMNShape>')
+    else:
+        di.append(
+            f'      <bpmndi:BPMNShape id="di_pool_{pidx}" bpmnElement="part_{pidx}" isHorizontal="false">\n'
+            f'        <dc:Bounds x="{proc.ox}" y="{POOL_Y - POOL_TITLE_BAND}" '
+            f'width="{proc.pool_width()}" height="{pool_h + POOL_TITLE_BAND}"/>\n'
+            f'      </bpmndi:BPMNShape>')
+        lane_range = [] if proc.simple else range(len(proc.lanes))  # 簡易:無泳道 DI
+        for i in lane_range:
+            # bpmn.io 的參與者名稱在頂帶,SVG 的左側直條(POOL_HEADER_W)在此無用途,
+            # 若照搬會在 pool 左緣留一條 30px 空縫;讓第一泳道向左延伸吃掉它。
+            lx = proc._lane_x(i) - (POOL_HEADER_W if i == 0 else 0)
+            lw = proc.lane_width(i) + (POOL_HEADER_W if i == 0 else 0)
+            di.append(
+                f'      <bpmndi:BPMNShape id="di_lane_{pidx}_{i}" bpmnElement="lane_{pidx}_{i}" isHorizontal="false">\n'
+                f'        <dc:Bounds x="{lx}" y="{POOL_Y}" width="{lw}" height="{pool_h}"/>\n'
+                f'      </bpmndi:BPMNShape>')
     for n in proc.nodes.values():
         # 事件/工件名稱一律置圖形下方(依組織繪製規範圖例);與 SVG 一致。
         elabel = ""
@@ -3177,7 +3326,7 @@ def _drawio_page_xml(x, page_id):
 
     # 底層 → 上層(XML 順序即 z-order):分區底色 → pool/lane 框與標題 → 連線 → 節點
     for i, proc in enumerate(pools):
-        if proc.simple:                 # 簡易模式:不畫分區底色帶
+        if proc.simple or getattr(proc, "horizontal", False):  # 簡易/橫式另行處理
             continue
         gx = proc.ox + POOL_HEADER_W
         gw = proc.pool_width() - POOL_HEADER_W
@@ -3208,6 +3357,26 @@ def _drawio_page_xml(x, page_id):
          left0, POOL_Y - 48, max(360, len(str(x.name)) * 20 + 90), 28)
     for i, proc in enumerate(pools):
         if proc.simple:                 # 簡易模式:不畫 pool 外框/泳道/標頭
+            continue
+        if getattr(proc, "horizontal", False):   # 橫式:泳道成上下橫帶
+            hdr = getattr(proc, "_h_hdr", H_HDR)
+            lane_top = getattr(proc, "_h_lane_top", {})
+            lane_h = getattr(proc, "_h_lane_h", {})
+            top0 = POOL_Y + H_TITLE
+            right = getattr(proc, "_h_right", proc.ox + 400)
+            bottom = getattr(proc, "_h_bottom", top0 + 200)
+            cell("dio_hpool_%d" % i, "",
+                 "rounded=0;html=1;fillColor=none;strokeColor=#3a4a59;strokeWidth=2;",
+                 proc.ox, top0, right - proc.ox, bottom - top0)
+            for li, lname in enumerate(proc.lanes):
+                ly = lane_top.get(li, top0); lh = lane_h.get(li, H_SUBH)
+                cell("dio_hlane_%d_%d" % (i, li), "",
+                     "rounded=0;html=1;fillColor=none;strokeColor=#8a99a8;",
+                     proc.ox + hdr, ly, right - proc.ox - hdr, lh)
+                cell("dio_hlanehdr_%d_%d" % (i, li), lname,
+                     "text;html=1;align=center;verticalAlign=middle;fontStyle=1;"
+                     "fontSize=12;fontColor=#3a4a59;fillColor=#eef2f6;",
+                     proc.ox, ly, hdr, lh)
             continue
         pw = proc.pool_width()
         cell("dio_pool_%d" % i, "",
@@ -3468,6 +3637,34 @@ def _svg_pool(proc, pool_h):
                  f'fill="#eef2f6" stroke="#cdd6df"/>')
         s.append(f'<text x="{lx+proc.lane_width(i)/2}" y="{POOL_Y+23}" font-size="13.5" '
                  f'font-weight="bold" fill="#3a4a59" text-anchor="middle">{escape(lname)}</text>')
+    return s
+
+
+def _svg_pool_h(proc):
+    """橫式 pool 繪製:泳道成上下橫帶,標頭欄在左(橫排文字),流程左→右。
+    v1 支援角色泳道(bands 系統分區於橫式暫不繪)。"""
+    s = []
+    ox = proc.ox
+    hdr = getattr(proc, "_h_hdr", H_HDR)
+    lane_top = getattr(proc, "_h_lane_top", {})
+    lane_h = getattr(proc, "_h_lane_h", {})
+    top0 = POOL_Y + H_TITLE
+    right = getattr(proc, "_h_right", ox + 400)
+    bottom = getattr(proc, "_h_bottom", top0 + 200)
+    # pool 外框
+    s.append(f'<rect x="{ox}" y="{top0}" width="{right-ox}" height="{bottom-top0}" '
+             f'fill="none" stroke="#9aa7b4" stroke-width="1.5"/>')
+    for i, lname in enumerate(proc.lanes):
+        ly = lane_top.get(i, top0); lh = lane_h.get(i, H_SUBH)
+        # 泳道帶框 + 帶間分隔
+        s.append(f'<rect x="{ox+hdr}" y="{ly}" width="{right-ox-hdr}" height="{lh}" '
+                 f'fill="none" stroke="#cdd6df"/>')
+        # 左側標頭欄(橫排文字)
+        s.append(f'<rect x="{ox}" y="{ly}" width="{hdr}" height="{lh}" '
+                 f'fill="#eef2f6" stroke="#cdd6df"/>')
+        s.append(f'<text x="{ox+hdr/2}" y="{ly+lh/2}" font-size="12.5" '
+                 f'font-weight="bold" fill="#3a4a59" text-anchor="middle" '
+                 f'dominant-baseline="middle">{escape(lname)}</text>')
     return s
 
 
@@ -3761,23 +3958,36 @@ def build_svg(x, pad_aspect=True):
     # viewBox 內容自適應:依實際內容範圍四邊各留 PAD 小留白;
     # 寬高比不寫死,但低於 MIN_ASPECT(直式過長會被預覽器裁底)時左右對稱補白。
     PAD = 24
-    if any(p.simple for p in pools):
-        # 簡易模式無 pool 框:viewBox 依實際節點範圍,修掉表頭欄留白
-        xs = [n["x"] for p in pools for n in p.nodes.values()
-              if n.get("x") is not None]
-        xw = [n["x"] + n["w"] for p in pools for n in p.nodes.values()
-              if n.get("x") is not None]
+    horiz = any(getattr(p, "horizontal", False) for p in pools)
+    node_based = horiz or any(p.simple for p in pools)
+    title_top = (POOL_Y - 20) - 19             # 圖頂標題 baseline 與字級
+    if node_based:
+        # 簡易/橫式:viewBox 依實際節點(+橫式泳道帶)範圍,不用直式 pool 幾何
+        xs = [n["x"] for p in pools for n in p.nodes.values() if n.get("x") is not None]
+        xw = [n["x"] + n["w"] for p in pools for n in p.nodes.values() if n.get("x") is not None]
+        ys = [n["y"] for p in pools for n in p.nodes.values() if n.get("y") is not None]
+        yb = [n["y"] + n["h"] for p in pools for n in p.nodes.values() if n.get("y") is not None]
         left = min(xs) if xs else min(p.ox for p in pools)
         right = max(xw) if xw else max(p.ox + p.pool_width() for p in pools)
+        if horiz and not all(p.simple for p in pools):
+            left = min(left, min(p.ox for p in pools))   # 含左側泳道標頭欄
+            right = max([right] + [getattr(p, "_h_right", right) for p in pools])
+        top = min(ys) if ys else POOL_Y
+        bottom = max([max(yb) if yb else POOL_Y]
+                     + [getattr(p, "_h_bottom", 0) for p in pools if horiz])
+        for _bx, _bn, box, bw in getattr(x, "_bb_geo", []):
+            right = max(right, box + bw)
+        vx, vy = left - PAD, min(title_top, top) - PAD
+        vw = (right - left) + PAD * 2
+        vh = (bottom - min(title_top, top)) + PAD * 2
     else:
         left = min(proc.ox for proc in pools)
         right = max(proc.ox + proc.pool_width() for proc in pools)
-    for _bx, _bn, box, bw in getattr(x, "_bb_geo", []):
-        right = max(right, box + bw)
-    title_top = (POOL_Y - 20) - 19             # 圖頂標題 baseline 與字級
-    vx, vy = left - PAD, title_top - PAD
-    vw = (right - left) + PAD * 2
-    vh = (POOL_Y + pool_h - title_top) + PAD * 2
+        for _bx, _bn, box, bw in getattr(x, "_bb_geo", []):
+            right = max(right, box + bw)
+        vx, vy = left - PAD, title_top - PAD
+        vw = (right - left) + PAD * 2
+        vh = (POOL_Y + pool_h - title_top) + PAD * 2
     pad_capped = False
     if pad_aspect and vw / vh < MIN_ASPECT:
         # 目標補到 MIN_ASPECT,但封頂於內容寬 × PAD_CAP:超長圖寧可維持
@@ -3814,7 +4024,11 @@ def build_svg(x, pad_aspect=True):
                  f'font-weight="bold" fill="#1f2d3d" text-anchor="middle">'
                  f'{escape(bname)}</text>')
     for proc in pools:
-        if not proc.simple:            # 簡易模式:不畫 pool 外框/泳道/分區
+        if proc.simple:                # 簡易模式:不畫 pool 外框/泳道/分區
+            continue
+        if getattr(proc, "horizontal", False):
+            s += _svg_pool_h(proc)     # 橫式:泳道成上下橫帶
+        else:
             s += _svg_pool(proc, pool_h)
     for proc in pools:
         for cid, cname, cx0, cy0, cx1, cy1, ckind in proc.container_spans():

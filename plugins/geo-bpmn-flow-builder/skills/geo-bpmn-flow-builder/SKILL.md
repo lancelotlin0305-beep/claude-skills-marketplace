@@ -2,7 +2,8 @@
 name: geo-bpmn-flow-builder
 description: >-
   把工作流程說明、訪談/會議記錄中談到的流程、或一張現有操作流程圖,轉成符合 BPMN 規則的
-  直式流程圖(單純流程可用簡易模式 Proc(simple=True),不套泳道、只畫節點+連線)。
+  直式流程圖(預設);單純流程可用簡易模式 Proc(simple=True) 不套泳道、只畫節點+連線;
+  也支援橫式 Proc(horizontal=True)(流程左→右、泳道成上下橫帶)。
   必產 3 檔:流程說明 MD、流程定義 .py、版本記錄表;可選 3 檔(首次產出時
   詢問,勾選才產):可編輯圖檔 XML(預設 .drawio;明講用 bpmn.io 才產 .bpmn)、SVG、
   可縮放 HTML 檢視器。支援迭代:使用者修改圖檔、
@@ -12,7 +13,7 @@ description: >-
   或上傳修改後的圖檔 / .md / .drawio / .bpmn / 相關描述文字要求更新迭代。
 ---
 
-<!-- skill 20260810.05 -->
+<!-- skill 20260810.06 -->
 <!-- 修改本 skill 時:同步更新上行版號(yyyymmdd.兩位數序號),並在 CHANGELOG.md 增列 -->
 
 # BPMN 直式流程圖產生器

@@ -232,6 +232,35 @@ def test_non_simple_requires_lanes():
 
 
 # ---------------------------------------------------------------------------
+# 橫式版面
+# ---------------------------------------------------------------------------
+def test_horizontal_simple_flows_left_to_right():
+    p = B.Proc("h", "橫式", simple=True, horizontal=True)
+    for nid, t, nm in [("s", "start", "開始"), ("a", "task", "一"),
+                       ("b", "task", "二"), ("e", "end", "完成")]:
+        p.add(nid, t, nm)
+    p.flow("s", "a"); p.flow("a", "b"); p.flow("b", "e")
+    B.check_layout(p)   # 觸發 _ensure 放置
+    xs = [p.nodes[k]["x"] for k in ("s", "a", "b", "e")]
+    assert xs == sorted(xs) and xs[0] < xs[-1], "橫式應由左往右遞增 x"
+    ys = [p.nodes[k]["y"] for k in ("s", "a", "b", "e")]
+    assert max(ys) - min(ys) < 40, "線性鏈應大致同一 y 帶"
+    assert not _iron_violations(p)
+
+
+def test_horizontal_lanes_wellformed_and_clean():
+    p = B.Proc("hl", "橫式泳道", ["甲", "乙"], horizontal=True)
+    p.add("s", "start", "開始", 0); p.add("a", "task", "甲步驟", 0)
+    p.add("b", "task", "乙步驟", 1); p.add("e", "end", "完成", 0)
+    p.flow("s", "a"); p.flow("a", "b"); p.flow("b", "e")
+    svg = B.build_svg(p)
+    minidom.parseString(svg); minidom.parseString(B.build_drawio(p))
+    minidom.parseString(B.build_bpmn(p))
+    assert p.nodes["b"]["y"] > p.nodes["a"]["y"], "不同泳道應落在不同 y 橫帶"
+    assert not _iron_violations(p)
+
+
+# ---------------------------------------------------------------------------
 # 內建 runner(免 pytest)
 # ---------------------------------------------------------------------------
 def _run():

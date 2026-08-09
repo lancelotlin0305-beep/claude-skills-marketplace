@@ -135,10 +135,36 @@ def build_simple():
     return p
 
 
+def build_horizontal():
+    # 橫式版面(流程左→右、泳道成上下橫帶):Proc(..., horizontal=True)
+    p = Proc("範例_橫式泳道流程圖", "範例｜橫式泳道流程圖", ["申請人", "主管"],
+             horizontal=True)
+    p.add("s",  "start",   "開始",     0)
+    p.add("a",  "task",    "填寫申請單", 0)
+    p.add("b",  "task",    "主管審核",   1)
+    p.add("gw", "gateway", "核准?",     1)
+    p.add("c",  "task",    "通知結果",   0)
+    p.add("e",  "end",     "完成",      0)
+    p.flow("s", "a"); p.flow("a", "b"); p.flow("b", "gw")
+    p.flow("gw", "c", "核准"); p.flow("gw", "e", "駁回"); p.flow("c", "e")
+    return p
+
+
+def build_horizontal_simple():
+    # 橫式 + 簡易(無泳道)
+    p = Proc("範例_橫式簡易流程圖", "範例｜橫式簡易流程圖",
+             simple=True, horizontal=True)
+    p.add("s", "start", "開始"); p.add("a", "task", "步驟一")
+    p.add("b", "task", "步驟二"); p.add("e", "end", "完成")
+    p.flow("s", "a"); p.flow("a", "b"); p.flow("b", "e")
+    return p
+
+
 if __name__ == "__main__":
     outdir = sys.argv[1] if len(sys.argv) > 1 else "."
     for x in (build_manual(), build_auto(), build_parallel(), build_bands(),
-              build_collab(), build_simple()):
+              build_collab(), build_simple(), build_horizontal(),
+              build_horizontal_simple()):
         emit(x, outdir, src=__file__,
              change="初版產出", change_kind="初版", change_source="流程說明")
     print("done ->", os.path.abspath(outdir))
