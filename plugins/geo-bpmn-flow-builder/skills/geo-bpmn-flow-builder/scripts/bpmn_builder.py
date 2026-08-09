@@ -9,7 +9,7 @@
     成 ASCII NCName(xid),bpmn.io / draw.io 皆合法
 
 公開 API:
-  Proc(pid, name, lanes, bands=None, version="V01.00")
+  Proc(pid, name, lanes, *, bands=None, version="V01.00")   # bands/version 具名傳入
     .add(id, type, name, lane, row=None, dx=0, kind="exclusive")
         type: start / end / gateway / task
         kind(僅 gateway): exclusive(預設) / parallel / inclusive
@@ -24,7 +24,7 @@
   build_svg(x, pad_aspect=True) / build_md(x)
   build_viewer_html(x)                          # 可縮放 HTML 檢視器(含節點搜尋)
   bump_version(v, structural)                   # 版號進位(規則見 reference/workflow.md)
-  emit(x, outdir, viewer=True, src=None,        # x 可為 Proc 或 Collab;固定 6 檔,
+  emit(x, outdir, viewer=True, src=None,        # x 可為 Proc/Collab;必產 3+可選 3,
        fmt="drawio",                            #   圖檔 XML 預設 drawio(明講才用 bpmn)
        change=None, change_kind=None, change_source=None)
 """
@@ -1468,10 +1468,12 @@ def _repair_rounds(p, max_rounds=5):
 
 
 def _assign_backloop_tracks(p):
-    """回線軌位指派(20260710.14):每條 backLoop(明示或依列序回頭者)
-    依(目標列、來源列、fid)排序各配一軌,寫入來源節點 `_blt`,
-    供 waypoints() 的左通道 x 逐軌外移 2×LINE_GAP——消除多回線共線;
-    目標端進點由 _spread_ports 以長並行加距(2×LINE_GAP)分開。"""
+    """回線軌位指派:每條 backLoop 依「列跨度(hi−lo)升冪」排序各配一軌
+    (20260809.04;跨度大者佔外軌同心包住內圈,取代舊「深源佔外軌」),
+    寫入來源節點 `_blt` 與 `_blt_max`,供 waypoints() 逐軌外移 2×LINE_GAP
+    消除多回線共線;目標端進點由 _spread_ports 分開。
+    註(待專項):`_blt` 以來源節點 id 為鍵,同源多回線會互相覆寫共軌;
+    lane0 分支用全域 `_blt_max` 可能被 lane1+ 回線數污染——見 REVIEW 待辦。"""
     loops = []
     for fid, s, tg, _lab, rt in p.flows:
         S, T = p.nodes.get(s), p.nodes.get(tg)
@@ -4193,18 +4195,22 @@ def _git_mode(outdir):
 
 
 _PORTABLE_PRELUDE = '''import os as _os, sys as _sys  # scripts 定位(可攜化 by emit)
-_cands = [_os.environ.get("GEO_BPMN_SCRIPTS"), %r]
-_mk = _os.path.expanduser(_os.path.join("~", ".claude", "plugins", "marketplaces"))
-if _os.path.isdir(_mk):
-    for _root, _dirs, _files in _os.walk(_mk):
-        if "bpmn_builder.py" in _files and _os.path.basename(_root) == "scripts":
-            _cands.insert(1, _root); break
-for _p in _cands:
-    if _p and _os.path.isfile(_os.path.join(_p, "bpmn_builder.py")):
-        _sys.path.insert(0, _p); break
+def _find_bb(orig):
+    for _p in (_os.environ.get("GEO_BPMN_SCRIPTS"), orig):  # 先試環境變數、原路徑
+        if _p and _os.path.isfile(_os.path.join(_p, "bpmn_builder.py")):
+            return _p
+    _mk = _os.path.expanduser(_os.path.join("~", ".claude", "plugins", "marketplaces"))
+    _hits = []                                              # 皆 miss 才掃 marketplace
+    if _os.path.isdir(_mk):
+        for _root, _dirs, _files in _os.walk(_mk):
+            if "bpmn_builder.py" in _files and _os.path.basename(_root) == "scripts":
+                _hits.append(_root)
+    _hits.sort(key=lambda d: ("cache" in d.replace("\\\\", "/").split("/"),))  # 非 cache 優先
+    return _hits[0] if _hits else orig
+_sys.path.insert(0, _find_bb(%r))
 '''
 _SYSPATH_RE = re.compile(
-    r'^sys\.path\.insert\(\s*0\s*,\s*r?["\'](.*?)["\']\s*\)\s*$', re.M)
+    r'^sys\.path\.insert\(\s*0\s*,\s*r?["\'](.*?)["\']\s*\)[ \t]*$', re.M)
 
 
 def _copy_def(src, dst):

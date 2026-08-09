@@ -32,8 +32,10 @@ def build_manual():
     p.add("ft",  "task",    "回饋/再訓練",          1, 5)
     p.add("e",   "end",     "完成",                2, 5)
     # route: auto(預設)/ straight(同欄直下)/ enterRight(從右側接入)
-    #        outLeft / outRight(分歧分支自左/右頂點出)/ backLoop(回饋迴圈走最左通道)
-    #        sideRight / sideLeft(同泳道跳層走泳道右/左緣通道,不穿過中間節點)
+    #        outLeft / outRight(分歧分支自左/右頂點出)
+    #        backLoop(回饋迴圈;通道置來源泳道左緣外側就近空隙,多回線依列跨度分軌)
+    #        sideRight / sideLeft(同泳道跳層走側通道就近繞過障礙,不穿過中間節點)
+    #        註:回頭邊/側繞線 auto 已自動就近選路,通常毋須手動指定 route
     p.flow("s", "read")
     p.flow("read", "gen")
     p.flow("gen", "gw", route="straight")

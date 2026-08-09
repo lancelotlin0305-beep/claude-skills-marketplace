@@ -147,8 +147,9 @@
 - **長並行雙門檻**:_wps_par_close 增 minlen 參數;檢核端另跑
   (lo=2, hi=2×LINE_GAP, minlen=150)——長並行須 ≥24px。共端點對僅檢
   長並行(短距貼行為端口分散所致,屬正常)。
-- **backLoop 逐軌**:_assign_backloop_tracks 依(目標列,來源列,fid)
-  排序寫入來源節點 `_blt`,waypoints 左通道 x = 左緣+14+_blt×2×LINE_GAP。
+- **backLoop 逐軌**:多回線各佔一軌消共線。排序與通道位置已於 20260809.04
+  更新(改依列跨度升冪、通道置來源泳道左緣外側空隙),詳見「就近繞線與
+  巢狀回線(20260809)」節,此處不再重述舊式。
 - **端口分散長並行加距**:_spread_ports 成員鄰接段 >150px 時錯開間距
   升為 2×LINE_GAP。
 - **關連線全體互覺**:assoc_waypoints 改為首呼叫時 _route_assocs 一次

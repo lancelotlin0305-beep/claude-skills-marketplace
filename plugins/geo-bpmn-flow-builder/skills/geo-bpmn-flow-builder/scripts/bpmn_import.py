@@ -133,7 +133,9 @@ def parse_bpmn(path):
                 nm = (el.findtext(f'{{{NS["bpmn"]}}}text') or "").strip()
             elif tag.endswith("Task") or tag in ("callActivity", "subProcess"):
                 t, kind = "task", _TASK2KIND.get(tag, "generic")
-            else:
+            elif nid is None:
+                continue        # 未預期且無 id 的元素(如 ioSpecification):跳過,
+            else:               # 避免 nodes[None] 互相覆寫(20260810 複審修正)
                 t, kind = "task", ""
             nodes[nid] = dict(id=nid, t=t, name=nm,
                               lane=lane_of.get(nid), kind=kind)
@@ -323,8 +325,11 @@ def _diff_pool(old, new, out):
     ren = lambda nm: renames.get(nm, nm)
     for nm in sorted(onames & nnames):
         o, n = old["nodes"][nm], new["nodes"][nm]
-        if o["t"] != n["t"] or (o["t"] == "gateway" and o["kind"] and
-                                n["kind"] and o["kind"] != n["kind"]):
+        # input/output 方向無法自 .bpmn 還原,視為同一工件類避免假 diff;
+        # kind 變更對 gateway 與 task 皆比對(20260810 複審修正)
+        _cls = lambda t: "工件" if t in ("input", "output") else t
+        if _cls(o["t"]) != _cls(n["t"]) or (o["t"] in ("gateway", "task")
+                and o["kind"] and n["kind"] and o["kind"] != n["kind"]):
             out.append(f"{tag}節點「{nm}」型別/閘道種類變更:"
                        f"{o['t']}{o['kind'] and '('+o['kind']+')' or ''} → "
                        f"{n['t']}{n['kind'] and '('+n['kind']+')' or ''}")

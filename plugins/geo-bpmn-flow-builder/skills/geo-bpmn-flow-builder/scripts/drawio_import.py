@@ -231,6 +231,13 @@ def diff(old_path, new_path):
         for k in sorted(set(of) & set(nf)):
             if of[k] != nf[k]:
                 print(f"  ~ 連線標籤 {k[0]}→{k[1]}:「{of[k]}」→「{nf[k]}」"); text = True
+        # 端點脫鉤連線:於 diff 亦如實列出(20260810 複審修正:原只在 show 警示)
+        od = {(s, t) for _c, s, t, _l in o.get("dropped", [])}
+        nd = {(s, t) for _c, s, t, _l in n.get("dropped", [])}
+        for s, t in sorted(nd - od):
+            print(f"  ⚠ 新增端點脫鉤連線 {s}→{t}(未納入,請於 draw.io 重接)")
+        for s, t in sorted(od - nd):
+            print(f"  ⚠ 端點脫鉤連線已消失 {s}→{t}")
     kind = "結構" if structural else ("文字" if text else "無差異")
     print(f"\n=> 差異類型:{kind}")
     if structural or text:
