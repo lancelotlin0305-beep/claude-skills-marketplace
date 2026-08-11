@@ -1,7 +1,7 @@
 {
   "name": "geo-bpmn-flow-builder",
   "description": "把工作流程說明、訪談/會議記錄中談到的流程、或一張現有操作流程圖，轉成符合 BPMN 規則的直式流程圖，必產 3 檔（流程說明、流程定義、版本記錄）＋可選 3 檔（圖檔 XML、SVG、HTML 檢視器），支援迭代進版",
-  "version": "20260811.02",
+  "version": "20260811.03",
   "author": {
     "name": "Lancelot Lin",
     "email": "lancelot.lin0305@gmail.com"
