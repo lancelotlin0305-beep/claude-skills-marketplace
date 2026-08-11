@@ -261,6 +261,70 @@ def test_horizontal_lanes_wellformed_and_clean():
 
 
 # ---------------------------------------------------------------------------
+# 事件類型擴充(signal/link/cancel/multiple/parallelMultiple)
+# ---------------------------------------------------------------------------
+def _events_proc():
+    # 線性鏈涵蓋 signal/link/multiple/parallelMultiple 於
+    # start / 中間 catch / throw 各位置(cancel 邊界另見 _cancel_proc)
+    p = B.Proc("ev", "事件示範", ["角色"])
+    p.add("s", "signal", "信號起始", 0)            # signal start(無 incoming)
+    p.add("t1", "task", "處理", 0)
+    p.add("lk", "link", "連接", 0)                 # link 中間 catch
+    p.add("mul", "multiple", "多重", 0)            # multiple 中間 catch
+    p.add("pm", "parallelMultiple", "平行多重", 0)  # parallelMultiple 中間 catch
+    p.add("thr", "signal", "擲信號", 0, kind="throw")   # signal throw
+    p.add("e", "end", "完成", 0)
+    p.flow("s", "t1"); p.flow("t1", "lk"); p.flow("lk", "mul")
+    p.flow("mul", "pm"); p.flow("pm", "thr"); p.flow("thr", "e")
+    return p
+
+
+def _cancel_proc():
+    # cancel 作交易子流程的邊界事件(其主要用途),導向專屬終止
+    p = B.Proc("cx", "取消示範", ["角色"])
+    p.add("s", "start", "開始", 0)
+    p.add("txn", "task", "交易處理", 0, kind="subprocess")
+    p.add("e", "end", "完成", 0)
+    p.add("bnd", "cancel", "取消", 0, attach="txn")
+    p.add("ce", "terminate", "已取消", 0)
+    p.flow("s", "txn"); p.flow("txn", "e"); p.flow("bnd", "ce")
+    return p
+
+
+def test_new_events_outputs_wellformed():
+    p = _events_proc()
+    for fn in (B.build_svg, B.build_drawio, B.build_bpmn):
+        minidom.parseString(fn(p))       # 三輸出皆合法 XML
+    assert not _iron_violations(p), "新事件類型不得產生鐵則硬傷"
+    # cancel 邊界路徑也須輸出合法 XML(佈局不在此斷言)
+    for fn in (B.build_svg, B.build_drawio, B.build_bpmn):
+        minidom.parseString(fn(_cancel_proc()))
+
+
+def test_new_events_bpmn_definitions():
+    bpmn = B.build_bpmn(_events_proc()) + B.build_bpmn(_cancel_proc())
+    for ed in ("signalEventDefinition", "linkEventDefinition",
+               "cancelEventDefinition"):
+        assert ed in bpmn, f".bpmn 應含 {ed}"
+    assert 'parallelMultiple="true"' in bpmn, "parallelMultiple 須標屬性"
+    assert "multipleEventDefinition" not in bpmn, \
+        "multiple 不可偽造不存在的 eventDefinition"
+
+
+def test_new_events_drawio_symbols():
+    dio = B.build_drawio(_events_proc()) + B.build_drawio(_cancel_proc())
+    for sym in ("symbol=signal", "symbol=link", "symbol=cancel",
+                "symbol=multiple", "symbol=parallelMultiple"):
+        assert sym in dio, f".drawio 應含 {sym}"
+
+
+def test_signal_start_not_orphan():
+    # signal 起始事件(無 incoming)不應被判為孤兒、且整體語意乾淨
+    sem = B.check_semantics(_events_proc())
+    assert not any("孤兒" in i for i in sem), f"signal 起始誤判孤兒:{sem}"
+
+
+# ---------------------------------------------------------------------------
 # 內建 runner(免 pytest)
 # ---------------------------------------------------------------------------
 def _run():

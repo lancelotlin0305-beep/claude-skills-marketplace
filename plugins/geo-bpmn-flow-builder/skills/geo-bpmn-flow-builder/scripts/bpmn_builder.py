@@ -107,17 +107,30 @@ STYLE = {
     "escalation":  {"fill": "#ffffff", "stroke": "#5a6b7b", "sw": 1.8},
     "conditional": {"fill": "#ffffff", "stroke": "#5a6b7b", "sw": 1.8},
     "compensation": {"fill": "#ffffff", "stroke": "#5a6b7b", "sw": 1.8},
+    "signal":      {"fill": "#ffffff", "stroke": "#5a6b7b", "sw": 1.8},  # 信號(三角)
+    "link":        {"fill": "#ffffff", "stroke": "#5a6b7b", "sw": 1.8},  # 連接(箭頭)
+    "cancel":      {"fill": "#ffffff", "stroke": "#5a6b7b", "sw": 1.8},  # 取消(X)
+    "multiple":    {"fill": "#ffffff", "stroke": "#5a6b7b", "sw": 1.8},  # 多重(五邊形)
+    "parallelMultiple": {"fill": "#ffffff", "stroke": "#5a6b7b", "sw": 1.8},  # 平行多重(十字)
     "task_send":   {"fill": "#ffffff", "stroke": "#444444"},
     "task_receive": {"fill": "#ffffff", "stroke": "#444444"},
     "task_script": {"fill": "#ffffff", "stroke": "#444444"},
     "task_call":   {"fill": "#ffffff", "stroke": "#333333"},  # 呼叫活動(粗框)
 }
 EVENT_TS = ("start", "end", "terminate", "message", "timer",
-            "error", "escalation", "conditional", "compensation")
+            "error", "escalation", "conditional", "compensation",
+            "signal", "link", "cancel", "multiple", "parallelMultiple")
 EVDEF = {"message": "messageEventDefinition", "timer": "timerEventDefinition",
          "error": "errorEventDefinition", "escalation": "escalationEventDefinition",
          "conditional": "conditionalEventDefinition",
-         "compensation": "compensateEventDefinition"}
+         "compensation": "compensateEventDefinition",
+         "signal": "signalEventDefinition", "link": "linkEventDefinition",
+         "cancel": "cancelEventDefinition"}
+# 多重/平行多重:BPMN 無單一 eventDefinition(需 ≥2 個),v1 於 SVG/.drawio 畫
+# 五邊形/十字記號;.bpmn 以無定義事件輸出(位置決定 tag,parallelMultiple 標屬性)。
+MULTI_TS = ("multiple", "parallelMultiple")
+# 可作觸發起點(無 incoming)/流程中間 catch 的事件型別(用於語意檢核豁免)
+TRIGGER_TS = tuple(EVDEF) + MULTI_TS
 NONGRID_TS = ("input", "output", "note")   # 不佔流程格位
 ARTIFACT_TS = ("input", "output", "database")
 # flow() 合法 route(打錯字防呆);waypoints() 對未知值退化 _orth_down
@@ -139,7 +152,7 @@ def node_size(t, name=""):
     if t in EVENT_TS:
         return EV_D, EV_D
     if t == "gateway":
-        return GW_D, GW_D          # 菱形固定尺寸;名稱 ≤3 字單行、4 字折兩行,≥5 字由版面檢查警告
+        return GW_D, GW_D          # 菱形固定尺寸;內畫記號(排他 X/平行 +/包容 O),名稱一律置菱形下方
     if t in ("input", "output"):
         return 42, 52              # 文件形工件(折角);名稱置下方
     if t == "database":
@@ -255,12 +268,13 @@ class Proc:
     def add(self, nid, t, name, lane=0, row=None, dx=0, kind=None,
             attach=None, interrupting=True, loop=False):
         """t: start/end/terminate/message/timer/error/escalation/conditional/
-              compensation(事件;kind="catch"預設/"throw",單圈=起訖、
+              compensation/signal/link/cancel/multiple/parallelMultiple
+              (事件;kind="catch"預設/"throw",單圈=起訖、
               雙圈=流程中間,依進出線自動判定)、gateway、task、
               input/output/database/note(工件與註解,以 assoc() 連接)
         attach="節點id":邊界事件,貼附於該活動邊框(interrupting=False 為
               非中斷,虛線雙圈);loop=True:活動迴圈記號
-        kind: gateway → exclusive(預設,素菱形)/parallel/inclusive/event(事件型)
+        kind: gateway → exclusive(預設,菱形內 X)/parallel/inclusive/event(事件型)
               task    → generic(預設,白)/user(綠)/system(藍)/subprocess(紫)/
                         send/receive/script/call(呼叫活動,粗框)"""
         # lane 是「角色泳道」整數索引(0~N-1);系統分區請用建構子 bands=。
@@ -275,10 +289,10 @@ class Proc:
         if kind is None:
             kind = "exclusive" if t == "gateway" else \
                    ("generic" if t == "task" else
-                    ("catch" if t in EVDEF else None))
+                    ("catch" if t in TRIGGER_TS else None))
         if t == "task" and kind not in TASK_KINDS:
             raise ValueError(f"task kind 只能是 {TASK_KINDS},收到 {kind!r}")
-        if t in EVDEF and kind not in ("catch", "throw"):
+        if t in TRIGGER_TS and kind not in ("catch", "throw"):
             raise ValueError(f"事件 kind 只能是 catch/throw,收到 {kind!r}")
         if t == "gateway" and kind not in ("exclusive", "parallel",
                                            "inclusive", "event"):
@@ -772,7 +786,7 @@ def check_semantics(x):
         flow_nodes = {k: n for k, n in p.nodes.items()
                       if n["t"] not in NONGRID_TS}   # 工件/註解不參與流程語意
         starts = [k for k, n in flow_nodes.items()
-                  if n["t"] == "start" or (n["t"] in ("message", "timer")
+                  if n["t"] == "start" or (n["t"] in TRIGGER_TS
                                            and not radj[k])]
         ends = [k for k, n in flow_nodes.items()
                 if n["t"] in ("end", "terminate")]
@@ -783,7 +797,7 @@ def check_semantics(x):
         for k, n in flow_nodes.items():
             if n["t"] not in ("end", "terminate") and not adj[k]:
                 iss.append(f"「{n['name']}」無下一關(懸空)")
-            if n["t"] not in ("start", "message", "timer") \
+            if n["t"] != "start" and n["t"] not in TRIGGER_TS \
                     and not n.get("attach") and not radj[k]:
                 iss.append(f"「{n['name']}」無上一關(孤兒)")
             if n["t"] == "gateway":
@@ -1070,7 +1084,8 @@ def _check_placed(x):
     for proc in pools:
         pr = proc.ox + proc.pool_width()
         for n in proc.nodes.values():
-            if (n["t"] not in EVENT_TS and n["t"] not in ARTIFACT_TS) \
+            if (n["t"] not in EVENT_TS and n["t"] not in ARTIFACT_TS
+                    and n["t"] != "gateway") \
                     or not n["name"]:
                 continue
             lines = wrap(n["name"], 6)
@@ -1086,13 +1101,6 @@ def _check_placed(x):
             for m in proc.nodes.values():
                 if m["id"] != n["id"] and _boxes_overlap(lb, m):
                     issues.append(f"下方標籤壓到節點:「{n['name']}」標籤 ↔「{m['name']}」")
-    # 排他閘道名稱長度檢查(菱形固定尺寸:≤3 字單行、4 字折兩行,≥5 字會溢出)
-    for proc in pools:
-        for n in proc.nodes.values():
-            if n["t"] == "gateway" and n.get("kind", "exclusive") == "exclusive" \
-                    and len(n["name"]) > 4:
-                issues.append(f"閘道名稱過長會溢出菱形:「{n['name']}」"
-                              f"(請精簡至 4 字內,如「面談方式」,詳細準則放前置判斷任務)")
     # 橫向系統分區(bands)定義檢查
     for proc in pools:
         spans = []
@@ -3000,6 +3008,32 @@ def _process_xml(proc, pidx):
                 tag = "intermediateThrowEvent"
             else:
                 tag = "intermediateCatchEvent"
+        elif t in MULTI_TS:
+            # 多重/平行多重:無單一 eventDefinition(BPMN 需 ≥2 個),v1 輸出無定義
+            # 事件、位置決定 tag;parallelMultiple 於可用位置標 parallelMultiple="true"
+            # (SVG/.drawio 仍畫五邊形/十字記號,詳見 conventions 圖例落地)
+            if n.get("attach"):
+                cancel = "" if n.get("interrupting", True) \
+                    else ' cancelActivity="false"'
+                pm = ' parallelMultiple="true"' if t == "parallelMultiple" else ""
+                el.append(f'    <bpmn:boundaryEvent id="{nid}" name={na} '
+                          f'attachedToRef="{n["attach"]}"{cancel}{pm}>{io}\n'
+                          f'    </bpmn:boundaryEvent>')
+                continue
+            if not inc[nid]:
+                tag = "startEvent"
+            elif not outg[nid]:
+                tag = "endEvent"
+            elif n.get("kind") == "throw":
+                tag = "intermediateThrowEvent"
+            else:
+                tag = "intermediateCatchEvent"
+            # parallelMultiple 屬性僅 start/catch/boundary 合法(throw/end 不標)
+            pm = ' parallelMultiple="true"' \
+                if t == "parallelMultiple" \
+                and tag in ("startEvent", "intermediateCatchEvent") else ""
+            el.append(f'    <bpmn:{tag} id="{nid}" name={na}{pm}>{io}\n    </bpmn:{tag}>')
+            continue
         elif t == "task":
             tag = TASK_TAG.get(n.get("kind") or "generic", "task")
             if n.get("loop"):
@@ -3095,6 +3129,9 @@ def _pool_di_xml(proc, pidx, pool_h):
                       f'        </bpmndi:BPMNLabel>')
         expand = ' isExpanded="false"' \
             if n["t"] == "task" and n.get("kind") == "subprocess" else ""
+        # 排他閘道:isMarkerVisible=true 讓 bpmn.io 於菱形內畫 X 記號(規範)
+        if n["t"] == "gateway" and n.get("kind", "exclusive") == "exclusive":
+            expand += ' isMarkerVisible="true"'
         di.append(
             f'      <bpmndi:BPMNShape id="di_{n["id"]}" bpmnElement="{n["id"]}"{expand}>\n'
             f'        <dc:Bounds x="{n["x"]}" y="{n["y"]}" width="{n["w"]}" height="{n["h"]}"/>{elabel}\n'
@@ -3254,11 +3291,13 @@ _DIO_EVENT_SYM = {"start": "general", "end": "general",
                   "terminate": "general",   # 規範:黃圈無記號
                   "message": "message", "timer": "timer",
                   "error": "error", "escalation": "escalation",
-                  "conditional": "conditional", "compensation": "compensation"}
+                  "conditional": "conditional", "compensation": "compensation",
+                  "signal": "signal", "link": "link", "cancel": "cancel",
+                  "multiple": "multiple", "parallelMultiple": "parallelMultiple"}
 _DIO_GW = ("shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;"
            "labelBackgroundColor=#ffffff;verticalAlign=top;align=center;"
            "perimeter=rhombusPerimeter;outlineConnect=0;")
-_DIO_GW_KIND = {"exclusive": "outline=none;symbol=none;",          # 判斷分支:素菱形
+_DIO_GW_KIND = {"exclusive": "outline=none;symbol=exclusiveGw;",   # 判斷分支:菱形內 X 記號(規範)
                 "event": "outline=throwing;symbol=multiple;",       # 事件型:雙圈五邊形
                 "parallel": "outline=none;symbol=none;gwType=parallel;",
                 "inclusive": "outline=end;symbol=general;"}
@@ -3759,6 +3798,27 @@ def _svg_event_icon(t, cx, cy, throw=False):
         return [f'<path d="M{cx+1},{cy-6} L{cx-7},{cy} L{cx+1},{cy+6} Z '
                 f'M{cx+8},{cy-6} L{cx},{cy} L{cx+8},{cy+6} Z" '
                 f'fill="{fill}" stroke="{st}" stroke-width="1.3"/>']
+    if t == "signal":       # 信號:向上三角
+        return [f'<path d="M{cx},{cy-8} L{cx+8},{cy+6} L{cx-8},{cy+6} Z" '
+                f'fill="{fill}" stroke="{st}" stroke-width="1.4" '
+                f'stroke-linejoin="round"/>']
+    if t == "link":         # 連接:向右箭頭
+        return [f'<path d="M{cx-8},{cy-4} L{cx+2},{cy-4} L{cx+2},{cy-8} '
+                f'L{cx+9},{cy} L{cx+2},{cy+8} L{cx+2},{cy+4} L{cx-8},{cy+4} Z" '
+                f'fill="{fill}" stroke="{st}" stroke-width="1.3" '
+                f'stroke-linejoin="round"/>']
+    if t == "cancel":       # 取消:X(對角十字,恆為線條)
+        return [f'<path d="M{cx-7},{cy-7} L{cx+7},{cy+7} '
+                f'M{cx-7},{cy+7} L{cx+7},{cy-7}" '
+                f'stroke="{st}" stroke-width="2.2" fill="none"/>']
+    if t == "multiple":     # 多重:五邊形
+        return [f'<polygon points="{cx},{cy-9} {cx+8.6},{cy-2.8} '
+                f'{cx+5.3},{cy+7.3} {cx-5.3},{cy+7.3} {cx-8.6},{cy-2.8}" '
+                f'fill="{fill}" stroke="{st}" stroke-width="1.4" '
+                f'stroke-linejoin="round"/>']
+    if t == "parallelMultiple":   # 平行多重:十字(恆為線條)
+        return [f'<path d="M{cx},{cy-8} L{cx},{cy+8} M{cx-8},{cy} L{cx+8},{cy}" '
+                f'stroke="{st}" stroke-width="2.4" fill="none"/>']
     return []
 
 
@@ -3833,7 +3893,7 @@ def _svg_nodes(proc):
             s.append(f'<circle cx="{cx}" cy="{cy}" r="{w/2}" fill="{st["fill"]}" '
                      f'stroke="{st["stroke"]}" stroke-width="{st["sw"]}"{dash}/>')
             # 流程中間事件(有進有出)或邊界事件 → 雙圈(BPMN 慣例)
-            if n.get("attach") or (t in EVDEF and indeg.get(n["id"])
+            if n.get("attach") or (t in TRIGGER_TS and indeg.get(n["id"])
                                    and outdeg.get(n["id"])):
                 s.append(f'<circle cx="{cx}" cy="{cy}" r="{w/2-3.5}" fill="none" '
                          f'stroke="{st["stroke"]}" stroke-width="1.2"{dash}/>')
@@ -3863,14 +3923,11 @@ def _svg_nodes(proc):
                 s.append(f'<circle cx="{cx}" cy="{cy}" r="10" fill="none" '
                          f'stroke="{gst["stroke"]}" stroke-width="2.6"/>')
             else:
-                # 判斷分支(排他,規範預設):素菱形,名稱置菱形內
-                # ≤3 字單行,4 字折兩行(2字/行),≥5 字由 check_layout 警告
-                lines = wrap(n["name"], 2 if len(n["name"]) > 3 else 5)
-                start = cy - (len(lines) - 1) * 6.5
-                for k, ln in enumerate(lines):
-                    s.append(f'<text x="{cx}" y="{start+k*13+4}" font-size="11" '
-                             f'fill="#1f2d3d" text-anchor="middle">{escape(ln)}</text>')
-            if kind in ("parallel", "inclusive", "event") and n["name"]:
+                # 判斷分支(排他,規範預設):菱形內畫 X 記號,名稱置菱形下方
+                s.append(f'<path d="M{cx-7},{cy-7} L{cx+7},{cy+7} '
+                         f'M{cx-7},{cy+7} L{cx+7},{cy-7}" '
+                         f'stroke="{gst["stroke"]}" stroke-width="2.6" fill="none"/>')
+            if n["name"]:
                 s += _svg_below_label(n["name"], cx, y + h)
         elif t in ("input", "output"):
             ast = STYLE["artifact"]
@@ -4078,7 +4135,10 @@ def build_svg(x, pad_aspect=True):
 TYPE_ZH = {"start": "起始事件", "end": "結束事件", "gateway": "決策閘道", "task": "任務",
            "terminate": "終止事件", "message": "訊息事件", "timer": "計時事件",
            "error": "錯誤事件", "escalation": "升級事件", "conditional": "條件事件",
-           "compensation": "補償事件", "input": "輸入文件", "output": "輸出文件",
+           "compensation": "補償事件", "signal": "信號事件", "link": "連接事件",
+           "cancel": "取消事件", "multiple": "多重事件",
+           "parallelMultiple": "平行多重事件",
+           "input": "輸入文件", "output": "輸出文件",
            "database": "資料儲存", "note": "註解"}
 KIND_ZH = {"exclusive": "排他", "parallel": "平行", "inclusive": "包容"}
 

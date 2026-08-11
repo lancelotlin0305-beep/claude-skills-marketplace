@@ -120,9 +120,12 @@
 - **閘道 kind**:`add(..., "gateway", ..., kind=)` 可選 `exclusive`(預設,擇一)/`parallel`
   (`+`,同時分岔、合流等全部到齊)/`inclusive`(`O`,條件為真者皆走)。平行/包容閘道
   通常不必命名(符號即語意);排他閘道分支建議標條件。
-- **排他閘道名稱置於菱形內、菱形固定尺寸不放大**:名稱 **≤3 字單行**(如「達標?」),
-  **4 字自動折兩行**(2字/行,如「面談方式」→「面談/方式」),**≥5 字**會溢出菱形,
-  `check_layout` 會自動警告。詳細判斷準則寫在閘道前的「判斷任務」,不塞進閘道名稱。
+- **排他閘道菱形內畫 `✕` 記號(BPMN 原始規範),名稱置菱形下方**:三種輸出一致——
+  SVG 於菱形內畫 X;`.drawio` 用 `symbol=exclusiveGw`;`.bpmn` 於 BPMNShape 標
+  `isMarkerVisible="true"`(bpmn.io 才畫 X)。名稱與 parallel/inclusive 一樣走
+  `_svg_below_label` 置於菱形下方,不再受菱形尺寸限制(舊「≥5 字溢出菱形」檢查已移除),
+  但仍受一般「下方標籤壓線/壓節點/超出 pool 邊緣」檢核約束,故取名仍宜精簡。
+  詳細判斷準則寫在閘道前的「判斷任務」,不塞進閘道名稱。
 - **分支標籤貼在線旁**:優先置於分支岔開後的水平段上方(65% 處、遠離菱形頂點);
   無水平段時貼在垂直段右側,不會退到菱形頂點。
 - **判斷語意必須自足(首次產製即到位)**:菱形名稱受 ≤4 字限制,但**分支標籤不受限**——
@@ -174,7 +177,7 @@
 | 轉折過多 | 3 | 轉角數超出基準(最短最少彎原則) |
 | 容器標題壓線 | 3 | 連線段壓在容器名稱文字上 |
 | 工件離夥伴過遠 | 3 | 工件離關連夥伴格距 >1 |
-| 標籤碰撞/溢出 | 3 | 標籤壓線或壓到節點、標籤超出 pool 邊緣、閘道名 ≥5 字溢出菱形等 |
+| 標籤碰撞/溢出 | 3 | 標籤壓線或壓到節點、標籤超出 pool 邊緣等 |
 | 順序流缺方向 | 硬性 | 順序流(實線非關連/訊息流)未顯示箭頭方向。**屬檔案級硬傷、不計權重分**:由 emitter 保證輸出 `endArrow=block`、`validate_bpmn.py` 座標再驗攔截(20260710.04)。check_layout 不評此項(幾何評分器不檢查樣式字串) |
 
 訊息流跨 pool 飛越節點屬慣例,列提醒級不計分。
@@ -214,20 +217,22 @@
 | 流程結束 | `t="end"` | 紅粗框圈 |
 | 訊息觸發 | `t="message"` | 白圈信封(無 incoming → start;否則 intermediateCatch) |
 | 時間觸發 | `t="timer"` | 白圈時鐘(同上) |
-| 判斷分支 | `t="gateway"`(預設 exclusive) | **素菱形**淡藍,名稱置菱形內 |
+| 判斷分支 | `t="gateway"`(預設 exclusive) | 淡藍菱形**內畫 `✕`**(規範),名稱置菱形下方 |
 | 平行/包容 | `kind="parallel"/"inclusive"` | 淡藍菱形 +/○ 記號 |
 | 一般任務 | `t="task"`(**預設** generic) | 白底圓角 |
 | 使用者功能 | `kind="user"` | 綠 `#d5e8d4`+人形記號 |
 | 系統內部功能 | `kind="system"` | 藍 `#dae8fc`+齒輪記號 |
 | 子流程 | `kind="subprocess"` | 紫 `#e1d5e7`+[+](→ .bpmn 為 subProcess) |
-| Input/Output | `t="input"/"output"` + `p.assoc(節點, 工件)` | 文件形(箭頭空心/實心) |
-| Database | `t="database"` | 圓柱 |
+| Input/Output(**資料物件 Data Object**) | `t="input"/"output"` + `p.assoc(節點, 工件)` | 文件形(箭頭空心=輸入/實心=輸出);對應 BPMN **Data Object**(流程中傳遞的資料) |
+| Database(**資料儲存 Data Store**) | `t="database"` | 圓柱;對應 BPMN **Data Store**(持久化資料來源,與 Data Object 分屬兩類) |
 | 關連 | `p.assoc(a, b, label)` | 點線無箭頭,走線自動避讓(assoc_waypoints) |
 | 關連錨定到線 | `p.assoc(註解id, ("流程來源id","流程目標id"))` | 註解說明某條**分支線**時,端點給 tuple 錨定到該順序流最長段中點;.drawio 輸出為原生線連線(20260716.03) |
 | 中間事件 | message/timer 等有進有出時 | 自動雙圈(單圈=起訖) |
 | 擲出事件 | `kind="throw"` | 圖示實心(如 escalation 陳報) |
 | 邊界事件 | `attach="宿主id"`(`interrupting=False`=非中斷虛線) | 貼宿主右下,→ .bpmn boundaryEvent |
 | 錯誤/升級/條件/補償 | `t="error"/"escalation"/"conditional"/"compensation"` | 對應 eventDefinition |
+| 信號/連接/取消 | `t="signal"/"link"/"cancel"` | 三角/箭頭/X 記號,對應 signal/link/cancelEventDefinition;可作 start/catch/throw/boundary/end(位置自動判定) |
+| 多重/平行多重 | `t="multiple"/"parallelMultiple"` | 五邊形/十字記號;BPMN 無單一 eventDefinition(需 ≥2 個),**v1 於 SVG/.drawio 畫記號完整;.bpmn 輸出無定義事件(parallelMultiple 標 `parallelMultiple="true"`),bpmn.io 需 ≥2 定義才畫五邊形,故 .bpmn 顯示為素圈** |
 | 事件型閘道 | `kind="event"` | 雙圈五邊形,→ eventBasedGateway |
 | 迴圈記號 | `loop=True` | ↻,→ standardLoopCharacteristics |
 | 傳送/接收/腳本 | `kind="send"/"receive"/"script"` | 官方 taskMarker |
@@ -239,7 +244,8 @@
 
 - **事件/工件名稱一律置圖形下方**(依圖例);工件不參與語意檢查(懸空/孤兒/可達性)。
 - **事件名稱 ≤4 字置圓內,超過自動移到圓圈右側**——取名時以 4 字內為佳。
-- 排他閘道 bpmn.io/draw.io 皆不畫 X 記號(素菱形=規範判斷分支)。
+- 排他閘道三種輸出一律畫 `✕` 記號(SVG 內畫 X;`.drawio` `symbol=exclusiveGw`;
+  `.bpmn` `isMarkerVisible="true"`),名稱置菱形下方——符合 BPMN 原始規範。
 
 ## 三格式檢核對照(單一來源分層)
 | 檢查層 | 位置 | 涵蓋 | 適用 |
