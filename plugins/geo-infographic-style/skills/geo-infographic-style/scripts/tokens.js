@@ -115,10 +115,57 @@ function wrap(text, size, maxW) {
   return lines.length ? lines : [''];
 }
 
+/**
+ * 平衡斷行:短標籤(卡標題、模組名)專用。
+ * 純寬度斷行會產生「採購成本最佳／化模組」這種切在詞中間的結果;本函式先算出最少需要幾行,
+ * 再把字數盡量均分,並在兩個同樣接近中點的切點中**偏好較早者**(中文較短的首行讀起來較自然)。
+ * 英數代號詞仍視為不可分割單元。
+ */
+function wrapBalanced(text, size, maxW) {
+  const s = String(text);
+  if (textWidth(s, size) <= maxW) return [s];
+
+  // 切成不可分割單元
+  const units = [];
+  let buf = '';
+  for (const ch of s) {
+    if (/[A-Za-z0-9._%+\-/]/.test(ch)) { buf += ch; continue; }
+    if (buf) { units.push(buf); buf = ''; }
+    units.push(ch);
+  }
+  if (buf) units.push(buf);
+
+  const total = textWidth(s, size);
+  const n = Math.max(2, Math.ceil(total / maxW));
+  const target = total / n;
+  // 中文複合詞多為雙字,切在奇數字處(如「智能客/服代理人」)明顯不自然 → 給奇數切點加罰分。
+  const ODD_PENALTY = size * 0.7;
+  const cjkCount = str => [...str].filter(c => !/[\x00-\xff]/.test(c)).length;
+
+  const lines = [];
+  let start = 0, remaining = n;
+  while (start < units.length && remaining > 0) {
+    if (remaining === 1) { lines.push(units.slice(start).join('')); break; }
+    let best = null;
+    let w = 0;
+    for (let end = start + 1; end <= units.length - (remaining - 1); end++) {
+      w += textWidth(units[end - 1], size);
+      if (w > maxW) break;
+      const seg = units.slice(start, end).join('');
+      const cost = Math.abs(w - target) + (cjkCount(seg) % 2 ? ODD_PENALTY : 0);
+      if (!best || cost < best.cost) best = { end, cost };
+    }
+    if (!best) best = { end: start + 1 };
+    lines.push(units.slice(start, best.end).join(''));
+    start = best.end; remaining--;
+  }
+  return lines.filter(l => l.length);
+}
+
 /** XML 逸出(全 skill 共用)。 */
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 module.exports = {
   RAW, mode, palette, geo, shadow, stroke, threshold, thresholdRef, chrome,
-  textWidth, capHeight, lineHeight, wrap, esc,
+  textWidth, capHeight, lineHeight, wrap, wrapBalanced, esc,
 };

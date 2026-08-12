@@ -42,7 +42,7 @@ class Validator {
   _add(level, rule, msg, ref) { this.issues.push({ level, rule, msg, ref }); }
 
   /** 元素必須完全落在容器內(最常見的靜默故障:第 N 張卡跑到畫布外) */
-  inside(name, child, parent, parentName = '容器') {
+  inside(name, child, parent, parentName = '容器', hint = null) {
     if (!child.within(parent)) {
       const over = [
         child.x < parent.x ? `左溢 ${(parent.x - child.x).toFixed(1)}` : '',
@@ -50,7 +50,7 @@ class Validator {
         child.right > parent.right ? `右溢 ${(child.right - parent.right).toFixed(1)}` : '',
         child.bottom > parent.bottom ? `下溢 ${(child.bottom - parent.bottom).toFixed(1)}` : '',
       ].filter(Boolean).join('、');
-      this._add('error', 'overflow', `「${name}」超出${parentName}:${over}px`, '§3.1');
+      this._add('error', 'overflow', `「${name}」超出${parentName}:${over}px` + (hint ? ` → ${hint}` : ''), '§3.1');
     }
   }
   /** 子元件與容器框、或並排元件之間的淨距 */
@@ -67,6 +67,21 @@ class Validator {
     const r = usedW / totalW;
     if (r < min - 0.001) {
       this._add('error', 'fill', `「${name}」填充率 ${(r * 100).toFixed(1)}% < 門檻 ${(min * 100)}%`, tk.thresholdRef('fillRatio'));
+    }
+  }
+  /**
+   * 等寬欄群組的填充率(§3.1 決策樹①與例外①)。
+   * 只對「撐出欄寬的 governing 卡」套 75% 門檻——短卡因等寬而多出的內距是必然、可接受的。
+   * 另檢查是否有單一張卡特別寬把整欄撐大、害其他卡大片留白(該情形改為警告,提示縮短該卡元素)。
+   */
+  fillGroup(name, contentWidths, colW) {
+    if (!contentWidths.length) return;
+    const gov = Math.max(...contentWidths), lo = Math.min(...contentWidths);
+    const min = tk.threshold('fillRatio');
+    if (gov / colW < min - 0.001) {
+      this._add('error', 'fill', `「${name}」欄寬未取到最小:governing 卡填充率 ${(gov / colW * 100).toFixed(1)}% < ${(min * 100)}%`, tk.thresholdRef('fillRatio'));
+    } else if (lo / colW < 0.5) {
+      this._add('warn', 'fill', `「${name}」最短卡僅佔欄寬 ${(lo / colW * 100).toFixed(1)}%——有單張卡把整欄撐大,建議縮短該卡元素`, '§3.1');
     }
   }
   /** 字級下限(下限不是目標,但低於下限一定不行) */
@@ -195,6 +210,53 @@ class Doc {
     const step = lh ?? tk.lineHeight(fs);
     lines.forEach((ln, i) => this.text(ln, x, y + i * step, { size: fs, weight: weight ?? this.mode.weights.body, fill: fill ?? this.P.ink.body }));
     return box(x, y - tk.capHeight(fs), Math.max(...lines.map(l => this.tw(l, fs))), (lines.length - 1) * step + tk.capHeight(fs) * 1.15);
+  }
+
+  // ---- L0 頁面框架裝飾(所有模板共用,不各寫一份) ----
+  /** 頁底極淺漸層 */
+  pageBg() { this.push(`<rect width="${this.W}" height="${this.H}" fill="url(#gPage)"/>`); return this; }
+
+  /**
+   * 標題右側裝飾:柔光圓 + 電路紋 + 節點。填補標題右方的大片空白(deck-anatomy §3 L0)。
+   * 不載資訊、置於內容層之下。x0 為標題文字右緣,裝飾只畫在其右側。
+   */
+  decorTitleRight(x0, bandH = 190) {
+    const W = this.W, x = Math.max(x0 + 60, W * 0.5);
+    const span = W - x;
+    if (span < 200) return this;
+    const R = (a, b) => a + (b - a) * 0.5;
+    this.push(`<g opacity="0.55">
+      <circle cx="${x + span * 0.16}" cy="${bandH * 0.35}" r="${Math.min(72, span * 0.09)}" fill="#DFEAFA"/>
+      <circle cx="${x + span * 0.45}" cy="${bandH * 0.55}" r="${Math.min(96, span * 0.12)}" fill="#E4EEFB"/>
+      <circle cx="${x + span * 0.78}" cy="${bandH * 0.30}" r="${Math.min(82, span * 0.10)}" fill="#DCE9FB"/>
+      <circle cx="${x + span * 0.62}" cy="${bandH * 0.74}" r="${Math.min(54, span * 0.07)}" fill="#E7F1FD"/></g>`);
+    const y1 = bandH * 0.73, y2 = bandH * 0.23, y3 = bandH * 0.50;
+    this.push(`<g opacity="0.5" stroke="#A9C4E8" fill="none" stroke-width="2" stroke-linecap="round">
+      <path d="M${x} ${y1}h${span * 0.11}l${span * 0.035} ${-bandH * 0.16}h${span * 0.14}l${span * 0.03} ${bandH * 0.14}h${span * 0.125}"/>
+      <path d="M${x + span * 0.12} ${y2}h${span * 0.16}l${span * 0.033} ${bandH * 0.15}h${span * 0.155}"/>
+      <path d="M${x + span * 0.45} ${bandH * 0.79}h${span * 0.175}l${span * 0.04} ${-bandH * 0.18}h${span * 0.15}"/>
+      <path d="M${x + span * 0.33} ${y3}h${span * 0.13}l${span * 0.028} ${bandH * 0.13}h${span * 0.21}"/></g>`);
+    this.push(`<g fill="#8FB0DC" opacity="0.55">` +
+      [[0.11, 0.73], [0.29, 0.57], [0.40, 0.71], [0.28, 0.23], [0.31, 0.38], [0.47, 0.38],
+       [0.62, 0.79], [0.66, 0.61], [0.81, 0.61], [0.70, 0.21], [0.73, 0.35], [0.90, 0.35],
+       [0.46, 0.50], [0.49, 0.63], [0.70, 0.63]]
+        .map(([fx, fy]) => `<circle cx="${x + span * fx}" cy="${bandH * fy}" r="4"/>`).join('') + `</g>`);
+    for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++)
+      this.push(`<circle cx="${x + span * 0.82 + i * 26}" cy="${bandH * 0.92 + j * 24}" r="2.4" fill="#9DB4DC" opacity="0.28"/>`);
+    return this;
+  }
+
+  /** 底緣天際線剪影 + 右下地球經緯弧:填補結論帶以下的空帶 */
+  decorBottom() {
+    const W = this.W, H = this.H;
+    this.push(`<g opacity="0.075" fill="#1B4F9C">
+      <path d="M${this.m} ${H}v-42h44v-20h30v20h38v-34h26v34h52v-26h34v26h60v-48h28v48h46v-18h32v18h40v-30h24v30h58v42z"/>
+      <path d="M${W * 0.34} ${H}v-56h40v-24l30-16 30 16v24h34v-40h26v40h48v-22h30v22h52v56z"/>
+      <path d="M${W * 0.58} ${H}v-70h38v-30h34v30h50v-46h28v46h44v-24h30v24h48v70z"/></g>`);
+    this.push(`<g opacity="0.07" stroke="#1B4F9C" fill="none" stroke-width="2">
+      <circle cx="${W - 230}" cy="${H - 40}" r="230"/><ellipse cx="${W - 230}" cy="${H - 40}" rx="96" ry="230"/>
+      <path d="M${W - 460} ${H - 80}h460M${W - 442} ${H - 140}h424"/></g>`);
+    return this;
   }
 
   // ---- 產出 ----
