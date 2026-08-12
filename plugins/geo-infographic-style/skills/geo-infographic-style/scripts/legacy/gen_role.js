@@ -1,3 +1,4 @@
+// ⚠ 已凍結:本檔為舊版手寫座標生成器,僅供對照參考。新版型請寫 templates/ 模板(見 references/engine.md)。
 // [範例生成器] 依「圖文結構語法」規則生成角色/中心輻射圖(3 級同構、圖文並置、hub-spoke)。
 // 內含中性示範資料,他案替換 leftCards/rightCards/hub 資料即可。屬 style-spec §13/§14 的參考實作。
 // 統一圖文結構生成器：五級共用骨架(圖文35:65 鏡像 + hub-spoke)，主圖區豐富度依 LEVEL 遞增。
@@ -5,7 +6,7 @@
 const fs=require('fs'),path=require('path');
 // 本檔為【自適應單張圖表】模式(非 16:9 簡報頁);字級取自 page_modes 的 adaptive 欄(style-spec §6.1)。
 // 若要產 16:9 簡報內頁,請改用 gen_hub_flow.js 或另建 16:9 生成器,不可直接沿用本檔字級。
-const {mode}=require('./page_modes');
+const {mode}=require('../page_modes');
 const T=mode('adaptive').type;
 const LEVEL=parseInt(process.argv[2]||'2',10);
 const OUT=process.argv[3];

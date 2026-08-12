@@ -1,3 +1,4 @@
+// ⚠ 已凍結:本檔為舊版手寫座標生成器,僅供對照參考。新版型請寫 templates/ 模板(見 references/engine.md)。
 // [生成器] 族③ hub 資料匯流頁(來源系統 → 中央 DataHub → 決策中心 → 模組群)。
 // Style pack: GEOX 深藍風(references/style-packs/geox-navy.md)+ 五層頁面模型(references/deck-anatomy.md)。
 // 換案子只改下方 DATA;版面、連線、輝光全部自動長出來。
@@ -5,7 +6,7 @@
 //   level 2(預設)= SVG 擬 3D 徽章;level 3 = 若 assetsDir 有對應 G**_*.png 去背素材則改嵌入素材。
 const fs = require('fs'), path = require('path');
 // 本檔為【16:9 簡報內頁】模式;字級一律取自 page_modes 的 16x9 欄(style-spec §6.1),不得寫死。
-const { mode } = require('./page_modes');
+const { mode } = require('../page_modes');
 const MD = mode('16x9'), T = MD.type;
 const OUT = process.argv[2] || 'hub-flow.svg';
 const LEVEL = parseInt(process.argv[3] || '2', 10);
@@ -123,7 +124,7 @@ const icon = (name, x, y, size, color, sw) =>
 
 // ============================ defs ============================
 // 先剝掉註解再抽 defs 內容——註解裡若出現標籤字樣會咬錯位置。
-const DEFS = fs.readFileSync(path.join(__dirname, '..', 'assets', 'defs.geox.svg'), 'utf8')
+const DEFS = fs.readFileSync(path.join(__dirname, '..', '..', 'assets', 'defs.geox.svg'), 'utf8')
   .replace(/<!--[\s\S]*?-->/g, '')
   .replace(/[\s\S]*?<defs>/, '').replace(/<\/defs>[\s\S]*/, '');
 

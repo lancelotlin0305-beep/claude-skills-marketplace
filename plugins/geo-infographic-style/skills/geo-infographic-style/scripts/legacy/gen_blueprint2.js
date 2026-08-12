@@ -1,10 +1,11 @@
-// [範例生成器] 流程/roadmap 平行卡版(16:9):階段卡 + 全寬淺色基礎橫帶 + 透明去背場景「浮貼」。
-// 對應版型判斷表「流程」列;透明場景以 <image meet> 浮貼、卡片漸層透出。替換 cards/chips 資料即可他用。
-// 流程/roadmap 版型生成器(16:9)：上升階段卡 + 全寬淺色基礎橫帶。第 3 級嵌真素材。
+// ⚠ 已凍結:本檔為舊版手寫座標生成器,僅供對照參考。新版型請寫 templates/ 模板(見 references/engine.md)。
+// [範例生成器] 流程/roadmap 階梯成長版(16:9):卡片逐階上升 + 成長曲線 + 透明去背場景浮貼 + 淺色基礎橫帶。
+// gen_blueprint.js 的階梯佈局變體。替換 cards/chips 資料即可他用。
+// 圖二:階梯成長版(16:9)——卡片逐階上升 + 成長曲線串接 + 全寬淺色基礎橫帶。重用同一批場景/文字。
 const fs=require('fs'),path=require('path');
-const {mode}=require('./page_modes');
+const {mode}=require('../page_modes');
 const OUT=process.argv[2];
-const ASSETS=process.argv[3]||'./geo-assets';
+const ASSETS=process.argv[3]||'./assets-scenes';
 // 本檔為 16:9 簡報頁模式;字級一律取自 page_modes(style-spec §6.1),不得寫死。
 const MD=mode('16x9'),T=MD.type;
 const W=MD.W,H=MD.H;
@@ -29,26 +30,16 @@ const DEFS=`
 <radialGradient id="sPurple" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#A47BF0"/><stop offset="1" stop-color="#4E27A0"/></radialGradient>
 <filter id="shadow" x="-25%" y="-25%" width="150%" height="165%"><feDropShadow dx="0" dy="9" stdDeviation="12" flood-color="#1B2A6B" flood-opacity="0.14"/><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1B2A6B" flood-opacity="0.10"/></filter>
 <filter id="row" x="-20%" y="-40%" width="140%" height="200%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#1B2A6B" flood-opacity="0.10"/></filter>
-<filter id="hdr" x="-20%" y="-40%" width="140%" height="200%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#14213D" flood-opacity="0.26"/></filter>
 `;
 
 P(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="Noto Sans TC, Microsoft JhengHei, sans-serif">`);
 P(`<defs>${DEFS}</defs>`);
 P(`<rect width="${W}" height="${H}" fill="#ffffff"/>`);
-// 背景裝飾(淡)
-P(`<circle cx="1500" cy="230" r="180" fill="#EAF1FA" opacity="0.5"/><circle cx="300" cy="300" r="120" fill="#EAF6EF" opacity="0.4"/>`);
+P(`<circle cx="1560" cy="200" r="190" fill="#EAF1FA" opacity="0.5"/><circle cx="240" cy="560" r="130" fill="#EAF6EF" opacity="0.4"/>`);
 
-// 標題
 P(`<text x="${W/2}" y="82" font-size="${T.title}" font-weight="900" fill="${TITLE}" text-anchor="middle">計畫未來發展藍圖</text>`);
 P(`<text x="${W/2}" y="122" font-size="${T.sub}" font-weight="400" fill="${MUT}" text-anchor="middle">以現有平台為基礎・整體規劃・分期實施(各項屬規劃建議)</text>`);
 
-// 上升階段軸(裝飾箭頭 + 三階段標籤)
-P(`<path d="M120 176 H1760" stroke="#CFE0F5" stroke-width="3" stroke-dasharray="2 8" fill="none"/>`);
-const stages=[['短期',420],['中期',960],['中長期',1500]];
-stages.forEach(([t,x])=>{P(`<circle cx="${x}" cy="176" r="6" fill="${ACC}"/><text x="${x}" y="158" font-size="${T.pill}" font-weight="700" fill="${ACC}" text-anchor="middle">${t}</text>`);});
-P(`<path d="M1760 176 l-14 -7 v14 z" fill="${ACC}"/>`);
-
-// 卡片資料
 // ===== 示範資料(中性範例;他案整段替換此區)=====
 const cards=[
  {c:'B',pill:'第一階段',title:'核心平台建置',asset:'scene_P1.png',
@@ -65,43 +56,53 @@ const COL={B:{band:'gBandB',hdr:'gHdrB',sph:'sBlue',deep:'#2444B8',edge:'#DDE5F7
  G:{band:'gBandG',hdr:'gHdrG',sph:'sGreen',deep:'#177A44',edge:'#D8EEDF',main:'#1F9254'},
  P:{band:'gBandP',hdr:'gHdrP',sph:'sPurple',deep:'#5B2FAE',edge:'#E6DCF7',main:'#6D3FC0'}};
 
-const x0=70,cw=428,gap=15,cy=200,ch=590,pad=22;
+const x0=70,cw=428,gap=15,ch=460,pad=22;
+const cyTop0=350,step=44;             // 逐階上升
+const cyOf=i=>cyTop0-i*step;
+
+// ---- 成長曲線(先畫,墊在卡下;節點之後畫在卡上) ----
+const nodes=cards.map((_,i)=>({x:x0+i*(cw+gap)+26, y:cyOf(i)}));
+const linePts=nodes.map(n=>`${n.x} ${n.y}`).join(' L ');
+const tipX=nodes[3].x+cw-30, tipY=nodes[3].y-46;
+P(`<path d="M ${linePts} L ${tipX} ${tipY}" fill="none" stroke="${ACC}" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" opacity="0.14"/>`);
+P(`<path d="M ${linePts} L ${tipX} ${tipY}" fill="none" stroke="${ACC}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1 12"/>`);
+// 箭頭
+const ang=Math.atan2(tipY-nodes[3].y, tipX-nodes[3].x);
+const a1x=tipX-22*Math.cos(ang-0.5), a1y=tipY-22*Math.sin(ang-0.5), a2x=tipX-22*Math.cos(ang+0.5), a2y=tipY-22*Math.sin(ang+0.5);
+P(`<path d="M${tipX} ${tipY} L${a1x.toFixed(1)} ${a1y.toFixed(1)} L${a2x.toFixed(1)} ${a2y.toFixed(1)} z" fill="${ACC}"/>`);
+P(`<text x="${tipX-6}" y="${tipY-18}" font-size="${T.pill}" font-weight="800" fill="${ACC}" text-anchor="end">願景</text>`);
+
+// ---- 卡片(逐階) ----
 cards.forEach((cd,i)=>{
-  const x=x0+i*(cw+gap),R=COL[cd.c];
-  // 厚度邊 + 卡
+  const x=x0+i*(cw+gap),cy=cyOf(i),R=COL[cd.c];
   P(`<rect x="${x}" y="${cy+6}" width="${cw}" height="${ch}" rx="18" fill="${R.main}" opacity="0.15"/>`);
   P(`<rect x="${x}" y="${cy}" width="${cw}" height="${ch}" rx="18" fill="url(#${R.band})" stroke="${R.main}" stroke-width="2" filter="url(#shadow)"/>`);
-  // 時間膠囊(寬由內容決定,§3.1)
   const pw=tw(cd.pill,T.pill)+30, ph=38;
-  P(`<rect x="${x+pad}" y="${cy+20}" width="${pw}" height="${ph}" rx="${ph/2}" fill="url(#${R.hdr})" filter="url(#row)"/>`);
-  P(`<text x="${x+pad+pw/2}" y="${cy+20+ph/2+7}" font-size="${T.pill}" font-weight="700" fill="#fff" text-anchor="middle">${esc(cd.pill)}</text>`);
-  // 標題
-  P(`<text x="${x+pad}" y="${cy+100}" font-size="${T.cardTitle}" font-weight="800" fill="${R.deep}">${esc(cd.title)}</text>`);
-  P(`<line x1="${x+pad}" y1="${cy+114}" x2="${x+cw-pad}" y2="${cy+114}" stroke="${R.edge}" stroke-width="1.5"/>`);
-  // 內文
+  P(`<rect x="${x+pad}" y="${cy+16}" width="${pw}" height="${ph}" rx="${ph/2}" fill="url(#${R.hdr})" filter="url(#row)"/>`);
+  P(`<text x="${x+pad+pw/2}" y="${cy+16+ph/2+7}" font-size="${T.pill}" font-weight="700" fill="#fff" text-anchor="middle">${esc(cd.pill)}</text>`);
+  P(`<text x="${x+pad}" y="${cy+96}" font-size="${T.cardTitle}" font-weight="800" fill="${R.deep}">${esc(cd.title)}</text>`);
+  P(`<line x1="${x+pad}" y1="${cy+110}" x2="${x+cw-pad}" y2="${cy+110}" stroke="${R.edge}" stroke-width="1.5"/>`);
   const blh=34;
-  cd.body.forEach((ln,j)=>{P(`<text x="${x+pad}" y="${cy+150+j*blh}" font-size="${T.body}" font-weight="500" fill="${INK}">${esc(ln)}</text>`);});
-  // 主圖:透明去背場景「浮貼」——卡片漸層從空隙透出,不裁切、不填底。
-  const sTop=cy+128+cd.body.length*blh+8, sBot=cy+ch-8;
+  cd.body.forEach((ln,j)=>{P(`<text x="${x+pad}" y="${cy+146+j*blh}" font-size="${T.body}" font-weight="500" fill="${INK}">${esc(ln)}</text>`);});
+  const sTop=cy+124+cd.body.length*blh+8, sBot=cy+ch-8;
   try{const b64=fs.readFileSync(path.join(ASSETS,cd.asset)).toString('base64');
     P(`<image x="${x+14}" y="${sTop}" width="${cw-28}" height="${sBot-sTop}" preserveAspectRatio="xMidYMid meet" xlink:href="data:image/png;base64,${b64}"/>`);
   }catch(e){console.error('缺場景',cd.asset);}
+  // 成長節點(畫在卡上緣)
+  P(`<circle cx="${x+26}" cy="${cy}" r="9" fill="#fff" stroke="${ACC}" stroke-width="3"/><circle cx="${x+26}" cy="${cy}" r="3.5" fill="${ACC}"/>`);
 });
 
-// 基礎橫帶(全寬淺色)
-const by=828,bh=210,bx=70,bw=W-140;
+// ---- 基礎橫帶(全寬淺色) ----
+const by=832,bh=206,bx=70,bw=W-140;
 P(`<rect x="${bx}" y="${by+6}" width="${bw}" height="${bh}" rx="20" fill="#5A6E8C" opacity="0.12"/>`);
 P(`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="20" fill="url(#gBandLite)" stroke="#B9C6D8" stroke-width="2" filter="url(#shadow)"/>`);
-// 標籤
 const bandLabel='核心平台基礎(第一階段)', blw=tw(bandLabel,T.subCard)+44;
 P(`<rect x="${bx+24}" y="${by+20}" width="${blw}" height="42" rx="21" fill="url(#gHdrB)" filter="url(#row)"/>`);
 P(`<text x="${bx+24+blw/2}" y="${by+48}" font-size="${T.subCard}" font-weight="800" fill="#fff" text-anchor="middle">${bandLabel}</text>`);
 P(`<text x="${bx+24+blw+28}" y="${by+48}" font-size="${T.note}" font-weight="400" fill="${MUT}">實線＝現有範圍;上方階段卡屬後續規劃</text>`);
-// 8 模組膠囊
-// 每格手工兩行(不切英文詞)
 const chips=[['案件申請平台','(申辦・追蹤)'],['通報／查詢平台','(行動化)'],['三階權限 RBAC','＋覆核'],['數位足跡','(全程留痕)'],['單一登入 OIDC','＋多因子'],['外部 API','格式對應'],['AI 智慧助理','(選配)'],['資安 DMZ','前後台分離']];
 const chipMain=['#2F54D1','#1F9254','#E8850C','#6D3FC0','#C62839','#2E9E5B','#5A6E8C','#B08A2E'];
-const cxs=8,cgap=12,ciw=(bw-48-(cxs-1)*cgap)/cxs,cyy=by+80,cih=116;
+const cxs=8,cgap=12,ciw=(bw-48-(cxs-1)*cgap)/cxs,cyy=by+78,cih=116;
 chips.forEach((lines,i)=>{
   const cx=bx+24+i*(ciw+cgap);
   P(`<rect x="${cx}" y="${cyy}" width="${ciw}" height="${cih}" rx="12" fill="#fff" stroke="#DDE3EC" stroke-width="1.4" filter="url(#row)"/>`);
@@ -112,4 +113,4 @@ chips.forEach((lines,i)=>{
 
 P(`</svg>`);
 fs.writeFileSync(OUT,o.join('\n'));
-console.log('blueprint ->',OUT);
+console.log('blueprint2 ->',OUT);

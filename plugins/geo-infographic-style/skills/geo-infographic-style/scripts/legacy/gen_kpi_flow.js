@@ -1,9 +1,10 @@
+// ⚠ 已凍結:本檔為舊版手寫座標生成器,僅供對照參考。新版型請寫 templates/ 模板(見 references/engine.md)。
 // [生成器] 族① KPI 大數字卡列 + 系統流程帶 + 結論帶(16:9 簡報內頁)。
 // Style pack: GEOX 深藍風(references/style-packs/geox-navy.md)+ 五層頁面模型(references/deck-anatomy.md)。
 // 換案子只改下方 DATA。字級一律取自 page_modes 的 16x9 欄(style-spec §6.1),不得寫死。
 // 用法: node gen_kpi_flow.js <out.svg> [level 1-3] [assetsDir]
 const fs = require('fs'), path = require('path');
-const { mode } = require('./page_modes');
+const { mode } = require('../page_modes');
 const MD = mode('16x9'), T = MD.type;
 const OUT = process.argv[2] || 'kpi-flow.svg';
 const LEVEL = parseInt(process.argv[3] || '2', 10);
@@ -97,7 +98,7 @@ const ICON = {
 const icon = (n, x, y, s, col, sw) =>
   `<g transform="translate(${x},${y}) scale(${(s / 24).toFixed(4)})" fill="none" stroke="${col}" stroke-width="${sw || 1.9}" stroke-linecap="round" stroke-linejoin="round">${ICON[n] || ''}</g>`;
 
-const DEFS = fs.readFileSync(path.join(__dirname, '..', 'assets', 'defs.geox.svg'), 'utf8')
+const DEFS = fs.readFileSync(path.join(__dirname, '..', '..', 'assets', 'defs.geox.svg'), 'utf8')
   .replace(/<!--[\s\S]*?-->/g, '').replace(/[\s\S]*?<defs>/, '').replace(/<\/defs>[\s\S]*/, '');
 
 // 擬 3D 徽章(level 3 有素材則改嵌素材)
