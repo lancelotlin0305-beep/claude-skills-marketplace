@@ -2690,6 +2690,25 @@ def _ensure(x):
         if not need_auto:
             for proc in x.pools:
                 _ensure(proc)
+            # 泳道加寬(工件/最小寬)在 _ensure 內才定案、pool 寬度隨之變大;
+            # 上方(依加寬前寬度)排定的 pool 原點會使後續 pool 左移、與前一
+            # pool 框重疊——SVG 於二次 _ensure 修正、.drawio 卻沿用首次錯值,
+            # 兩格式不一致(20260812 修)。故加寬定案後重排各 pool 原點,
+            # 原點有變者重放置其節點,兩格式一致且不重疊。
+            ox = POOL_X
+            for proc in x.pools:
+                if proc.ox != ox:
+                    proc.ox = ox
+                    for k in proc.nodes:
+                        proc._place(k)
+                    for k in proc.nodes:
+                        if proc.nodes[k].get("attach"):
+                            proc._place(k)
+                ox += proc.pool_width() + POOL_GAP
+            x._bb_geo = []
+            for bxid, bname in x.blackboxes:
+                x._bb_geo.append((bxid, bname, ox, 200))
+                ox += 200 + POOL_GAP
             return
         # Collab 層級雙版面試算:單 pool 各自取優會看不到跨 pool 訊息流的
         # 重合/交叉,故全 pool 同模式各排一版,以整體 check_layout 評分取優
