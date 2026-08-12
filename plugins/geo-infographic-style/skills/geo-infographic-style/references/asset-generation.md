@@ -117,7 +117,7 @@
 
 ### 5. 驗收與嵌入
 - 驗收:邊緣無毛邊、無殘留背景色、物件完整未被誤蝕;**無亂碼文字**(簡短專案術語如 `AI`/`KPI`/`GIS` 可保留,但須拼字完全正確,拼錯即重產;承載資訊的文字仍由 SVG,見 style-spec §5)。若要術語出現,設環境變數 **`ALLOW_TERMS=1`**(泛指短代號)或 **`ALLOW_TERMS=AI,KPI`**(指定清單)——`gen_assets.js`/`generate_assets.py` 會自動移除尾句的 `no text` 限制並放行該短詞(承載資訊文字仍禁)。
-- 嵌入:`<image href="data:image/png;base64,...">`(可攜)或相對路徑;**素材已自帶柔和光影,嵌入時不再疊 SVG 物件投影 `obj` 與地面扁橢圓**;依卡片比例 `preserveAspectRatio` 縮放。
+- 嵌入:在內容 JSON 的元素加 `"asset": "P編號_英文名"`,再以 `node scripts/build.js ... --level=3 --assets=<素材目錄>` 產圖;引擎會自動選相對路徑或內嵌 base64。**素材已自帶柔和光影,嵌入時不再疊 SVG 物件投影 `obj` 與地面扁橢圓**;依卡片比例 `preserveAspectRatio` 縮放。
 
 ## Prompt 交接模式(離線產圖,雲端/受限環境專用)
 

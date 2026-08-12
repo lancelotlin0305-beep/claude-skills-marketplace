@@ -29,8 +29,12 @@ if (!tpl) {
 const doc = new Doc({
   mode: opt('mode') || content.mode || '16x9',
   palette: opt('palette') || content.palette || 'geox-navy',
+  level: parseInt(opt('level') || content.level || '2', 10),
+  assets: opt('assets') || content.assets || './geo-assets',
+  outFile,
 });
-console.log(`模板 ${tpl.id} / 模式 ${doc.mode.label} ${doc.W}x${doc.H} / 色盤 ${doc.P.name}`);
+console.log(`模板 ${tpl.id} / 模式 ${doc.mode.label} ${doc.W}x${doc.H} / 色盤 ${doc.P.name} / 豐富度 L${doc.level}` +
+            (doc.level >= 3 ? ` / 素材 ${doc.assetsDir}` : ''));
 tpl.render(doc, content);
 doc.validate({ strict: !args.includes('--no-strict') });
 doc.write(outFile);

@@ -204,7 +204,7 @@ function render(doc, D) {
       doc.roundRect(b, { r: 16, fill: 'url(#xTile)', filter: 'shadow' });
       doc.push(`<rect x="${b.x + 3}" y="${b.y + 3}" width="${b.w - 6}" height="${b.h * 0.4}" rx="13" fill="url(#xGloss)"/>`);
     } else doc.roundRect(b, { r: 16, fill: 'url(#xBandB)', stroke: P.hue('blue').main, sw: 2, filter: 'shadow' });
-    badge(b.x + stPad + stBadge / 2, b.cy, stBadge, P.hue('blue'), s.icon);
+    badge(b.x + stPad + stBadge / 2, b.cy, stBadge, P.hue('blue'), s.icon, s.asset);
     const tx = b.x + stPad + stBadge + stGap, inkc = dark ? '#FFFFFF' : ink.title;
     const lines = s.lines || tk.wrapBalanced(s.title, T.cardTitle, b.right - stPad - tx);
     const blockH = lines.length * tk.lineHeight(T.cardTitle) + (s.sub ? tk.lineHeight(T.sub) : 0);
@@ -234,7 +234,7 @@ function render(doc, D) {
     const textW = Math.max(...lines.map(l => doc.tw(l, T.cardTitle)));
     const blockW = modBadge + modGap + textW;
     const bx = b.x + (b.w - blockW) / 2;
-    badge(bx + modBadge / 2, b.cy, modBadge, col, mods[i].icon);
+    badge(bx + modBadge / 2, b.cy, modBadge, col, mods[i].icon, mods[i].asset);
     let ty = b.cy - (lines.length * tk.lineHeight(T.cardTitle)) / 2 + T.cardTitle * 0.85;
     lines.forEach(ln => { doc.text(ln, bx + modBadge + modGap, ty, { size: T.cardTitle, weight: 800, fill: col.deep }); ty += tk.lineHeight(T.cardTitle); });
     doc.v.inside(`模組卡${i + 1}`, b, doc.safe, '安全區');
@@ -290,7 +290,9 @@ function render(doc, D) {
   if (D.page) doc.text(D.page, W - M, ch.footBaseline, { size: T.foot, weight: 400, fill: ink.faint, anchor: 'end' });
 
   // 擬 3D 徽章(level 2);level 3 由 assets 覆寫
-  function badge(cx2, cy2, size, col, iconName) {
+  function badge(cx2, cy2, size, col, iconName, assetName) {
+    // 第 3 級:有去背素材就嵌入(素材自帶光影,不疊投影與地面橢圓,§5)
+    if (doc.asset(assetName, cx2, cy2, size)) return;
     const r = size / 2, k = size * 0.28;
     doc.push(`<ellipse cx="${cx2}" cy="${cy2 + r + 6}" rx="${r * 0.86}" ry="${r * 0.17}" fill="${col.deep}" opacity="0.13"/>
       <rect x="${cx2 - r}" y="${cy2 - r}" width="${size}" height="${size}" rx="${k}" fill="url(#${'xSph' + col.key[0].toUpperCase()})" filter="url(#obj)"/>

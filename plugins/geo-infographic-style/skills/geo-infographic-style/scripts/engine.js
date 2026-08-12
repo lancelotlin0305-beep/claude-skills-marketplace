@@ -173,7 +173,7 @@ function fitDisplay(text, maxSize, availW) {
 
 // ---------------------------------------------------------------- Doc
 class Doc {
-  constructor({ mode = '16x9', palette = 'geox-navy', defs = null } = {}) {
+  constructor({ mode = '16x9', palette = 'geox-navy', defs = null, level = 2, assets = './geo-assets', outFile = null } = {}) {
     this.mode = tk.mode(mode);
     this.P = tk.palette(palette);
     this.T = this.mode.type;
@@ -185,6 +185,39 @@ class Doc {
     this.v = new Validator();
     this.out = [];
     this._defsFile = defs || (palette === 'geox-navy' ? 'defs.geox.svg' : 'defs.svg');
+    this.level = level;                 // 1 線框 / 2 立體 / 3 素材場景(style-spec §13)
+    this.assetsDir = assets;
+    this.outFile = outFile;
+    this._assetCount = 0;
+  }
+
+  /**
+   * 第 3 級擬真素材:找得到去背 PNG 就以 <image> 嵌入,回傳 true;
+   * 否則**回傳 false 並警告**,由呼叫端退回 SVG 徽章——不靜默失敗、不留白。
+   * 素材自帶柔和光影,嵌入時不再疊 SVG 投影與地面橢圓(style-spec §5)。
+   */
+  asset(name, cx, cy, size, { scale = 1.35 } = {}) {
+    if (this.level < 3 || !name) return false;
+    const file = path.resolve(this.assetsDir, name + '.png');
+    if (!fs.existsSync(file)) {
+      this.v.warn('asset', `第 3 級但找不到素材「${name}.png」(${this.assetsDir}),已退回 SVG 徽章`, '§13');
+      return false;
+    }
+    const s = size * scale;
+    if (s < tk.threshold('minAssetDisplayPx')) {
+      this.v.warn('asset', `素材「${name}」顯示尺寸 ${s.toFixed(0)}px < 下限 ${tk.threshold('minAssetDisplayPx')}px,改用 SVG 圖示`, 'deck-anatomy L3');
+      return false;
+    }
+    this._assetCount++;
+    if (this._assetCount > tk.threshold('maxAssetsPerPage')) {
+      this.v.warn('asset', `本頁擬真素材 ${this._assetCount} 件,超過建議上限 ${tk.threshold('maxAssetsPerPage')} 件,版面易失焦`, 'deck-anatomy L3');
+    }
+    // 有輸出路徑時走相對路徑(檔案小);否則內嵌 base64(可攜)
+    const href = this.outFile
+      ? path.relative(path.dirname(path.resolve(this.outFile)), file).replace(/\\/g, '/')
+      : 'data:image/png;base64,' + fs.readFileSync(file).toString('base64');
+    this.push(`<image href="${href}" x="${cx - s / 2}" y="${cy - s / 2}" width="${s}" height="${s}" preserveAspectRatio="xMidYMid meet"/>`);
+    return true;
   }
   get contentW() { return this.W - 2 * this.m; }
 

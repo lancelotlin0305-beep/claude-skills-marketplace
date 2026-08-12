@@ -120,8 +120,10 @@ function render(doc, D) {
     colItems[i].forEach((it, j) => {
       const rowH = Math.max(itemIcon, it.lines.length * tk.lineHeight(T.body)) + itemPad;
       if (j > 0) doc.push(`<line x1="${b.x + cardPad}" y1="${iy - itemGap / 2}" x2="${b.x + b.w - cardPad}" y2="${iy - itemGap / 2}" stroke="${col.main}" stroke-width="1.4" stroke-dasharray="5 5" opacity="0.5"/>`);
-      doc.push(`<circle cx="${b.x + cardPad + itemIcon / 2}" cy="${iy + rowH / 2}" r="${itemIcon / 2}" fill="${col.light}" stroke="${col.main}" stroke-width="1.4"/>`);
-      ic(it.icon, b.x + cardPad + itemIcon / 2 - 17, iy + rowH / 2 - 17, 34, col.main);
+      if (!doc.asset(it.asset, b.x + cardPad + itemIcon / 2, iy + rowH / 2, itemIcon)) {
+        doc.push(`<circle cx="${b.x + cardPad + itemIcon / 2}" cy="${iy + rowH / 2}" r="${itemIcon / 2}" fill="${col.light}" stroke="${col.main}" stroke-width="1.4"/>`);
+        ic(it.icon, b.x + cardPad + itemIcon / 2 - 17, iy + rowH / 2 - 17, 34, col.main);
+      }
       let ty = iy + (rowH - it.lines.length * tk.lineHeight(T.body)) / 2 + T.body * 0.9;
       it.lines.forEach(ln => { doc.text(ln, b.x + cardPad + itemIcon + itemGap, ty, { size: T.body, weight: 500, fill: ink.body }); ty += tk.lineHeight(T.body); });
       iy += rowH + itemGap;

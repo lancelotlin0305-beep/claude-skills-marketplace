@@ -68,6 +68,7 @@ doc.paragraph(s, x, y, maxW, {...})     // 自動斷行的文字塊
 doc.roundRect(box, { r, fill, stroke, sw, filter })
 doc.card(box, col, { fillId })          // 厚度邊 + 主體(立體四件套)
 doc.pill(text, x, y, col, {...})        // 寬度由內容決定
+doc.asset(name, cx, cy, size, {scale}) // 第 3 級素材;找不到回 false 並警告,呼叫端退回 SVG 徽章
 ```
 
 ### 驗收(`doc.v`)
@@ -105,6 +106,7 @@ doc.v.warn(rule, msg, ref)
 | 貼標與內容混為一談 | 導言句壓到磚上緣(貼標可越界,內容不行) | `clearance` |
 | 色相寫死成字典 | 群組數超過色數直接 crash | `palette().hue(i)` 自動循環 |
 | 圖示查不到 | 靜默留白 | `icons` fallback + warn |
+| 移植時漏搬素材分支 | 文件說支援第 3 級,程式其實不支援 | `doc.asset()` 找不到即警告,不靜默 |
 
 **修好一個坑就補一條檢查。** 上表每一列都是實際踩過才加的;沒有檢查的規則等於沒有規則。
 

@@ -34,9 +34,14 @@ description: 依「多色群組卡 × 淺色分層 × 擬 3D」統一風格,把�
 4. **產圖**
    ```
    node scripts/build.js <content.json> <out.svg> [--template=id] [--mode=16x9] [--palette=geox-navy]
+                                                  [--level=3 --assets=./geo-assets]
    node scripts/render.js <out.svg>          # 出 2 倍解析度 PNG
    ```
    `build.js` 會跑 validator;**任何錯誤即中止、不產出**。錯誤訊息會指出溢出量與建議動作(拆頁、減少項目、縮短文案)。
+
+   **第 3 級素材**:內容 JSON 的元素加 `"asset": "G04_forecast-chart"`(對應 `<assets目錄>/G04_forecast-chart.png`,去背透明 PNG)。
+   找得到就以 `<image>` 嵌入並**不再疊 SVG 投影與地面橢圓**(素材自帶光影,§5);**找不到會警告並自動退回 SVG 徽章**,不會靜默留白。
+   素材顯示尺寸低於 40px、或單頁超過 8 件時另有警告(deck-anatomy L3)。素材產製流程見 `references/asset-generation.md`。
 
 5. **交付**——單獨繪圖交付 PNG + SVG;在簡報/proposal 流程中把 PNG 嵌入該頁、SVG 一併附上。第 3 級素材流程見 `references/asset-generation.md`。
 
