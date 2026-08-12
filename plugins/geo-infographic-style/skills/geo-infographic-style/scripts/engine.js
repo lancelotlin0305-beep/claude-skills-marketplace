@@ -84,6 +84,16 @@ class Validator {
       this._add('warn', 'fill', `「${name}」最短卡僅佔欄寬 ${(lo / colW * 100).toFixed(1)}%——有單張卡把整欄撐大,建議縮短該卡元素`, '§3.1');
     }
   }
+  /**
+   * 垂直填充率:內容是否撐滿可用高度。
+   * 只查溢出不查「填不滿」會漏掉另一半的問題——內容只佔上半頁、下半整片空白時,
+   * 程式一樣回報 OK(這是實際發生過的漏網)。
+   */
+  verticalFill(name, usedH, availH) {
+    const r = usedH / availH;
+    if (r < 0.7) this._add('error', 'vfill', `「${name}」僅佔可用高度 ${(r * 100).toFixed(1)}%,下方大片留白 ${(availH - usedH).toFixed(0)}px`, '§3.1');
+    else if (r < 0.82) this._add('warn', 'vfill', `「${name}」佔可用高度 ${(r * 100).toFixed(1)}%,可再撐滿`, '§3.1');
+  }
   /** 字級下限(下限不是目標,但低於下限一定不行) */
   font(name, size) {
     if (size < tk.threshold('minAnyPx')) this._add('error', 'font', `「${name}」字級 ${size} < 全圖下限 ${tk.threshold('minAnyPx')}`, '§6.2');
