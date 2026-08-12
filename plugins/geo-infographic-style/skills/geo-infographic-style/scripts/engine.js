@@ -98,6 +98,20 @@ class Validator {
   font(name, size) {
     if (size < tk.threshold('minAnyPx')) this._add('error', 'font', `「${name}」字級 ${size} < 全圖下限 ${tk.threshold('minAnyPx')}`, '§6.2');
   }
+  /**
+   * 中文文句誤用半形標點(style-spec §6.3「全形標點直接使用」)。
+   * 只抓「緊鄰中文字」的 , ; : ! ? ——括號與斜線在英數語境是合法的(accepts()、px/%/pt),
+   * 不列入以免誤判。屬警告不中止:少數情況(如引用原文)可能是刻意的。
+   */
+  punctuation(text) {
+    const s = String(text);
+    const m = s.match(/[一-鿿][,;:!?]|[,;:!?][一-鿿]/);
+    if (m) {
+      const full = { ',': '，', ';': '；', ':': '：', '!': '！', '?': '？' };
+      const half = m[0].match(/[,;:!?]/)[0];
+      this._add('warn', 'punct', `「${s.length > 18 ? s.slice(0, 18) + '…' : s}」中文語句用了半形「${half}」,應為「${full[half]}」`, '§6.3');
+    }
+  }
   /** 一組元素兩兩不得重疊 */
   noOverlap(name, boxes) {
     for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
@@ -183,6 +197,7 @@ class Doc {
   /** 文字元素:回傳它佔用的 Box,方便交給 validator */
   text(s, x, y, { size, weight, fill, anchor = 'start', ls } = {}) {
     this.v.font(String(s).slice(0, 8), size);
+    this.v.punctuation(s);
     const w = this.tw(s, size);
     this.push(`<text x="${x}" y="${y}" font-size="${size}" font-weight="${weight}" fill="${fill}"${anchor !== 'start' ? ` text-anchor="${anchor}"` : ''}${ls ? ` letter-spacing="${ls}"` : ''}>${this.esc(s)}</text>`);
     const bx = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
