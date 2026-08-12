@@ -14,21 +14,21 @@ const MODES = {
     W: 1720, H: null,               // 高度依內容延展
     anchor: 'px',
     k: 0.73,                        // 間距係數(見下方說明)
-    type: { title: 40, lead: 26, conclude: 26, cardTitle: 22, tile: 18, subCard: 17, sub: 17, body: 16, note: 15, pill: 14.5, foot: 13 },
+    type: { title: 40, lead: 26, conclude: 26, cardTitle: 22, tile: 18, subCard: 17, sub: 17, body: 16, note: 15, pill: 14.5, foot: 13, big: 44, bigUnit: 18 },
   },
   '16x9': {
     W: 1920, H: 1080,
     anchor: 'pct',                  // type 值 = 該百分比 × 1080
     k: 1.00,                        // 基準模式
-    pct: { title: 5.2, lead: 3.0, conclude: 3.5, cardTitle: 2.4, tile: 2.2, subCard: 2.0, sub: 1.9, body: 2.0, note: 1.9, pill: 1.9, foot: 1.4 },
-    type: { title: 56, lead: 32, conclude: 38, cardTitle: 26, tile: 24, subCard: 22, sub: 20, body: 22, note: 20, pill: 20, foot: 15 },
+    pct: { title: 5.2, lead: 3.0, conclude: 3.5, cardTitle: 2.4, tile: 2.2, subCard: 2.0, sub: 1.9, body: 2.0, note: 1.9, pill: 1.9, foot: 1.4, big: 6.5, bigUnit: 2.8 },
+    type: { title: 56, lead: 32, conclude: 38, cardTitle: 26, tile: 24, subCard: 22, sub: 20, body: 22, note: 20, pill: 20, foot: 15, big: 70, bigUnit: 30 },
   },
   a4: {
     W: 1240, H: 1754,
     anchor: 'pt',                   // type 值 = pt × 2.08
     k: 1.00,
-    pt: { title: 24, lead: 14, conclude: 14, cardTitle: 13, tile: 12, subCard: 11, sub: 11, body: 10.5, note: 10, pill: 9.5, foot: 8 },
-    type: { title: 50, lead: 29, conclude: 29, cardTitle: 27, tile: 25, subCard: 23, sub: 23, body: 22, note: 21, pill: 20, foot: 17 },
+    pt: { title: 24, lead: 14, conclude: 14, cardTitle: 13, tile: 12, subCard: 11, sub: 11, body: 10.5, note: 10, pill: 9.5, foot: 8, big: 30, bigUnit: 13 },
+    type: { title: 50, lead: 29, conclude: 29, cardTitle: 27, tile: 25, subCard: 23, sub: 23, body: 22, note: 21, pill: 20, foot: 17, big: 62, bigUnit: 27 },
   },
 };
 
