@@ -85,7 +85,7 @@ const Y = {
   title: 84, sub: 116, lead: 172,                        // 導言句與 hub 膠囊同一水平帶
   // 尺度層級:磚 176 < 階段卡 210 < 圓柱 226(+台座)。三者底部漸次下探,右半不留空檔。
   rowTop: 198, rowH: 176, stageH: 210,
-  hubH: 226, padCy: 462,                                 // hub 圓柱高度與台座
+  hubH: 218, padCy: 452,                                 // 柱身高 = 膠囊堆疊 190 + 上下各 14;padCy = 台座下層中心
   modTop: 556, modH: 152,                                // 模組卡(收緊,圖示同步放大)
   capTop: 728, capH: 96,                                 // 共通能力帶(高度配合放大的圖示徽)
   cclTop: 844, cclH: 106,                                // 結論帶
@@ -165,6 +165,17 @@ function pad(cx, cy, rx, ry) {
   </g>`;
 }
 
+// 台座單層:上層面橢圓 + 側壁(做出厚度)。由下而上依序呼叫,大在下小在上。
+function tier(cx, cy, rx, ry, t) {
+  return `<g>
+  <path d="M${cx - rx} ${cy} v${t} a${rx} ${ry} 0 0 0 ${rx * 2} 0 v${-t} z" fill="url(#xTierSide)"/>
+  <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="url(#xTierTop)"/>
+  <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="${CYAN}" stroke-width="1.8" opacity="0.55"/>
+  <ellipse cx="${cx}" cy="${cy + t}" rx="${rx}" ry="${ry}" fill="none" stroke="${CYAN}" stroke-width="1.2" opacity="0.28"
+    clip-path="none" stroke-dasharray="${rx * 3.14} ${rx * 3.14}" stroke-dashoffset="0"/>
+  </g>`;
+}
+
 // chevron 箭頭
 function arrow(x, cy, len, grad) {
   const hw = 30, bh = 16, bx = x, bw = len - hw;
@@ -183,19 +194,20 @@ function cylinder(cx, top, rx, bodyH, rows) {
   <path d="M${cx + rx} ${top} v${bodyH}" stroke="${CYAN}" stroke-width="2" opacity="0.5" fill="none"/>
   </g>`;
   // 膠囊寬度由「最長標籤的內容」決定,不從圓柱半徑推——後者會讓短標籤右側固定空一大塊。
-  // 內容 = 內距 16 + 圓形圖示徽 38 + 間距 14 + 最長標籤 + 內距 16
-  const FS = T.cardTitle, BR = 19, PAD = 16, GAPX = 14;
+  // 內容 = 內距 24 + 圓形圖示徽 42 + 間距 16 + 最長標籤 + 內距 24;膠囊約佔柱寬 86%(對齊原簡報)。
+  // 堆疊間隙刻意壓到 8(約膠囊高 14%):原簡報三條幾乎相連,間隙一大就顯得柱身空。
+  const FS = T.cardTitle, BR = 21, PAD = 24, GAPX = 16, RAD = 16;
   const rw = PAD + BR * 2 + GAPX + Math.max(...rows.map(r => tw(r.label, FS))) + PAD;
-  const rh = 54, gap = 16;
+  const rh = 58, gap = 8;
   const totalH = rows.length * rh + (rows.length - 1) * gap;
-  let ry0 = top + (bodyH - totalH) / 2 + 2;
+  let ry0 = top + (bodyH - totalH) / 2;
   rows.forEach(r => {
     const rx0 = cx - rw / 2;
     g += `<g filter="url(#row)">
-    <rect x="${rx0}" y="${ry0}" width="${rw}" height="${rh}" rx="${rh / 2}" fill="#0B2650" opacity="0.82"/>
-    <rect x="${rx0}" y="${ry0}" width="${rw}" height="${rh}" rx="${rh / 2}" fill="none" stroke="${CYAN}" stroke-width="1.2" opacity="0.5"/>
+    <rect x="${rx0}" y="${ry0}" width="${rw}" height="${rh}" rx="${RAD}" fill="#0B2650" opacity="0.82"/>
+    <rect x="${rx0}" y="${ry0}" width="${rw}" height="${rh}" rx="${RAD}" fill="none" stroke="${CYAN}" stroke-width="1.2" opacity="0.5"/>
     <circle cx="${rx0 + PAD + BR}" cy="${ry0 + rh / 2}" r="${BR}" fill="url(#xSphB)"/>
-    ${icon(r.icon, rx0 + PAD + BR - 11, ry0 + rh / 2 - 11, 22, '#FFFFFF', 2.1)}
+    ${icon(r.icon, rx0 + PAD + BR - 12, ry0 + rh / 2 - 12, 24, '#FFFFFF', 2.0)}
     <text x="${rx0 + PAD + BR * 2 + GAPX}" y="${ry0 + rh / 2 + 9}" font-family="${FONT}" font-size="${FS}" font-weight="700" fill="#FFFFFF">${esc(r.label)}</text>
     </g>`;
     ry0 += rh + gap;
@@ -256,15 +268,18 @@ P(arrow(BLK.src.x + BLK.src.w + 3, ROW_CY, 44, 'xHdrB'));
 
 // DataHub 圓柱:區塊中心 = 版心 960
 const HCX = BLK.hub.x + BLK.hub.w / 2;
-const bw = tw(DATA.hub.badge, 24) + 52;
-P(`<g filter="url(#hdr)"><rect x="${HCX - bw / 2}" y="${Y.lead - 42}" width="${bw}" height="44" rx="22" fill="url(#xHdrO)"/></g>`);
-P(`<text x="${HCX}" y="${Y.lead - 12}" text-anchor="middle" font-size="${T.tile}" font-weight="800" fill="#FFFFFF">${esc(DATA.hub.badge)}</text>`);
-// 兩層台座:薄台階 + 發光平台;圓柱較窄較高並下探,成為整頁最重的視覺錨點(尺度層級)
-P(pad(HCX, Y.padCy, 200, 30));
-P(`<ellipse cx="${HCX}" cy="${Y.padCy - 12}" rx="150" ry="26" fill="url(#xCylTop)" opacity="0.55"/>`);
-// 柱半徑配合膠囊寬度(膠囊約佔柱寬 78%),避免柱身左右出現無用的深色空塗
-// +16:讓柱頂橢圓上緣與橘膠囊底緣淨距 ≥12(style-spec §3.1)
+// 台座:發光底 + 兩層實體圓台(有厚度),由大而小疊上來,承住圓柱
+P(pad(HCX, Y.padCy + 12, 212, 34));
+P(tier(HCX, Y.padCy, 180, 28, 12));
+P(tier(HCX, Y.padCy - 12, 146, 24, 10));
+// 柱半徑配合膠囊寬度(膠囊約佔柱寬 86%),避免柱身左右出現無用的深色空塗
 P(cylinder(HCX, RY + 16, 122, Y.hubH, DATA.hub.rows));
+// 橘膠囊為「貼標」語彙:刻意壓在柱頂上緣(覆蓋頂蓋上半),故畫在圓柱之後。
+// 此為 §3.1 淨距規則的例外——貼標與被貼物本就該重疊,不適用 ≥12 淨距。
+const bw = tw(DATA.hub.badge, 24) + 52;
+const badgeY = RY + 16 - 44;                             // 底緣正好落在柱頂橢圓中線,與第一條膠囊淨距 14
+P(`<g filter="url(#hdr)"><rect x="${HCX - bw / 2}" y="${badgeY}" width="${bw}" height="44" rx="22" fill="url(#xHdrO)"/></g>`);
+P(`<text x="${HCX}" y="${badgeY + 30}" text-anchor="middle" font-size="${T.tile}" font-weight="800" fill="#FFFFFF">${esc(DATA.hub.badge)}</text>`);
 
 P(arrow(BLK.hub.x + BLK.hub.w + 3, ROW_CY, 44, 'xHdrB'));
 
@@ -298,11 +313,11 @@ P(arrow(BLK.st1.x + BLK.st1.w + 3, ROW_CY, 44, 'xHdrB'));
 const MW = COLW, MY = Y.modTop, MH = Y.modH;
 const mcx = i => COL(i) + MW / 2;
 DATA.modules.forEach((m, i) => {
-  const sx = HCX, sy = Y.padCy + 18, ex = mcx(i), ey = MY;
+  const sx = HCX, sy = Y.padCy + 32, ex = mcx(i), ey = MY;   // 起點藏在台座發光下緣
   P(`<path d="M${sx} ${sy} C ${sx} ${sy + 62}, ${ex} ${ey - 76}, ${ex} ${ey}" fill="none" stroke="${FLOW}" stroke-width="2.6" opacity="0.9" filter="url(#glow)"/>`);
   P(`<circle cx="${ex}" cy="${ey}" r="4.5" fill="${FLOW}"/>`);
 });
-P(`<circle cx="${HCX}" cy="${Y.padCy + 18}" r="5.5" fill="${FLOW}" filter="url(#glow)"/>`);
+P(`<circle cx="${HCX}" cy="${Y.padCy + 32}" r="5.5" fill="${FLOW}" filter="url(#glow)"/>`);
 
 DATA.modules.forEach((m, i) => {
   const col = C[m.color], x = COL(i);

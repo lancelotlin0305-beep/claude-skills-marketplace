@@ -49,13 +49,20 @@
       <stop offset=".55" stop-color="#29C5F6" stop-opacity=".22"/>
       <stop offset="1" stop-color="#29C5F6" stop-opacity="0"/>
     </radialGradient>
-    <!-- 圓柱體(DataHub 類)柱身 -->
+    <!-- 圓柱體(DataHub 類)柱身。亮度對齊原簡報:中段須明顯偏亮,深色只留左右兩緣。 -->
     <linearGradient id="xCylBody" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#0C2650"/><stop offset=".18" stop-color="#1B4F9C"/>
-      <stop offset=".5" stop-color="#2465C4"/><stop offset=".82" stop-color="#153E7E"/><stop offset="1" stop-color="#0A2047"/>
+      <stop offset="0" stop-color="#123A6E"/><stop offset=".16" stop-color="#2A6FD0"/>
+      <stop offset=".46" stop-color="#4295EE"/><stop offset=".8" stop-color="#1E56A8"/><stop offset="1" stop-color="#0E2E5E"/>
     </linearGradient>
     <linearGradient id="xCylTop" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3D82DC"/><stop offset="1" stop-color="#153E7E"/>
+      <stop offset="0" stop-color="#5AA6F2"/><stop offset="1" stop-color="#1E56A0"/>
+    </linearGradient>
+    <!-- 台座各層:上層面與側壁(側壁較暗以做出厚度) -->
+    <linearGradient id="xTierTop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4A90E2"/><stop offset="1" stop-color="#153E7E"/>
+    </linearGradient>
+    <linearGradient id="xTierSide" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0C2A55"/><stop offset=".45" stop-color="#1D4E92"/><stop offset="1" stop-color="#09203F"/>
     </linearGradient>
 
     <!-- ===== 濾鏡 ===== -->
