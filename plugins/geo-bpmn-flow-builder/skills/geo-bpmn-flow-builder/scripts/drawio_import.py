@@ -32,7 +32,9 @@ _YELLOW = "#fff2cc"
 
 _EV_SYMBOLS = {"message": "message", "timer": "timer", "error": "error",
                "escalation": "escalation", "conditional": "conditional",
-               "compensation": "compensation"}
+               "compensation": "compensation", "signal": "signal",
+               "link": "link", "cancel": "cancel",
+               "parallelMultiple": "parallelMultiple", "multiple": "multiple"}
 
 
 def _node_type(style):

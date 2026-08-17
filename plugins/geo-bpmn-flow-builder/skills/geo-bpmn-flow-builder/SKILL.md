@@ -13,7 +13,7 @@ description: >-
   或上傳修改後的圖檔 / .md / .drawio / .bpmn / 相關描述文字要求更新迭代。
 ---
 
-<!-- skill 20260810.06 -->
+<!-- skill 20260812.01 -->
 <!-- 修改本 skill 時:同步更新上行版號(yyyymmdd.兩位數序號),並在 CHANGELOG.md 增列 -->
 
 # BPMN 直式流程圖產生器
@@ -33,6 +33,20 @@ description: >-
 2. `reference/conventions.md`:版面、繞線、閘道、分區、驗證慣例;多張圖同案時用 `emit_multi`(單一多頁 .drawio,見 workflow.md);
    API 寫法仿 `reference/example_process.py`。
    (`reference/internals.md` 為 builder 內部機制規格,**僅維護 skill 時讀**,產圖不需。)
+
+## 支援元素(圖例;完整樣式對照見 `conventions.md`「圖例落地」)
+
+- **事件**(`add(id, t, ...)`):`start` / `end` / `terminate`;觸發/中間事件
+  `message`(訊息)、`timer`(計時)、`error`(錯誤)、`escalation`(升級)、
+  `conditional`(條件)、`compensation`(補償)、`signal`(信號)、`link`(連接)、
+  `cancel`(取消)、`multiple`(多重)、`parallelMultiple`(平行多重)。位置維度
+  (起始/中間 catch/throw/邊界/結束)由進出線與 `kind="throw"`、`attach=` 自動判定。
+  註:`multiple`/`parallelMultiple` 於 SVG/.drawio 畫五邊形/十字記號完整,但因 BPMN
+  無單一 eventDefinition,`.bpmn` 顯示為素圈(v1 限制,詳見 conventions)。
+- **閘道**:`t="gateway"` + `kind=exclusive`(預設,菱形內 X)/`parallel`/`inclusive`/`event`。
+- **活動**:`t="task"` + `kind=generic/user/system/subprocess/send/receive/script/call`。
+- **連接**:序列流 `flow()`、跨 pool 訊息流 `message()`、關聯 `assoc()`;工件
+  `input`/`output`(Data Object)、`database`(Data Store)、`note`(註解)。
 
 ## 執行內容(產出)
 
