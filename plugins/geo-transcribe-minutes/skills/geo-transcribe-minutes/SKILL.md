@@ -1,17 +1,18 @@
 ---
 name: geo-transcribe-minutes
 description: >-
-  把音檔/影音檔/YouTube 連結高效率轉成逐字稿,順稿後萃取會議重點或影片/技術重點,
-  整理成會議記錄或技術傳承文件(逐字稿 MD、重點 MD、內嵌 SVG 的單檔 HTML,可選 SRT 字幕)。
-  多引擎自動偵測:Gemini/Groq/ElevenLabs/OpenAI 雲端 API 或本地
-  faster-whisper/SenseVoice(CPU 可用、機密資料不出機器);中文一律輸出繁體台灣用語
-  (OpenCC s2twp)。使用時機:使用者提供錄音檔、影片檔或 YouTube 連結,說「轉逐字稿」
-  「聽打」「整理會議記錄」「會議重點」「影片重點」「摘要這段錄音」「技術傳承/交接文件」;
-  既有逐字稿/SRT 只在順稿、壓字幕、影片重點、技術傳承用途時適用——**文字逐字稿要整理
-  會議記錄請改用 geo-meeting-minutes-builder**;或要求把先前產出的成品迭代更新。
+  會議產出管線入口。輸入:影音檔/語音檔/YouTube 連結**或既有逐字稿(txt/md/srt)**,
+  可另附參考資料(RFP、歷次會議記錄、術語表/與會者名單)強化專名校正與前次待辦回顧。
+  會議模式輸出「標準交付組合」四件:順稿逐字稿 MD、重點摘要 MD、重點摘要 SVG HTML、
+  公文體會議紀錄 DOCX;另支援技術傳承(handover)與影片重點模式。多引擎轉錄自動偵測
+  (Gemini/Groq/ElevenLabs/OpenAI/本地 faster-whisper 與 SenseVoice,機密可離線),
+  中文一律輸出繁體台灣用語。使用時機:使用者提供錄音、影片、YouTube 連結或逐字稿,
+  說「轉逐字稿」「聽打」「整理會議記錄」「會議重點」「摘要這段錄音」「技術傳承文件」;
+  需要知識萃取 HTML、對外/內部完整章節結構、嚴格跨會議追蹤時轉 geo-meeting-minutes-builder;
+  或要求把先前產出的成品迭代更新。
 ---
 
-<!-- skill 20260818.06 -->
+<!-- skill 20260818.07 -->
 <!-- 修改本 skill 時:同步更新上行版號(yyyymmdd.兩位數序號),並在 CHANGELOG.md 增列 -->
 
 # 音檔/影音 → 逐字稿 → 會議記錄/技術傳承文件
@@ -42,28 +43,33 @@ description: >-
   產出 `segments.json`、`transcript_raw.txt`、`subtitles.srt`。
   雲端引擎零 pip 依賴,只需對應環境變數的 API key。
 
-## 產出(輸出資料夾 `<來源檔名>_minutes\`)
+## 產出(輸出資料夾 `<來源檔名>_minutes\`;檔名必含會議名/主題,離開資料夾仍自明)
+
+**會議模式=標準交付組合四件**(輸入不論影音/語音/逐字稿,交付一致):
 
 | 檔案 | 內容 |
 |---|---|
-| `transcript_raw.txt` | 原始逐字稿(引擎輸出+時間戳,存證不修改) |
-| `transcript.md` | 順稿版逐字稿(分段、發言者、修錯字去贅詞) |
-| `minutes.json` | 會議模式的結構化中繼檔(決議/行動項/風險…,嚴格 schema) |
-| `summary.md` | 會議重點/技術重點/影片重點(依模式) |
-| `<會議名或主題>_會議記錄.html` / `<會議名或傳承主題>_技術傳承.html` | 最終文件:單檔自足 HTML,內嵌 SVG 時間軸等。**檔名必含會議名稱或內容主題**(離開資料夾仍自明;主題取 HTML `<title>` 主體,如「AI_skill化開發方法論_技術傳承.html」) |
-| `subtitles.srt` | 字幕(轉錄時自動產;Gemini 引擎時間戳僅分:秒級,不宜壓字幕) |
+| `<會議名>_逐字稿.md` | 順稿版(分段、發言者、時間戳、議題索引);原始 `transcript_raw.txt` 併存存證 |
+| `<會議名>_重點摘要.md` | 會議重點(結論/決議/行動項;有歷次會議記錄輸入時含「前次待辦進度回顧」) |
+| `<會議名>_重點摘要.html` | SVG 視覺版單檔 HTML(議程時間軸/決議摘要表/行動項/發言佔比) |
+| `YYYYMMDD_<會議名>_會議紀錄_正式版_v1.docx` | 公文體(呼叫 geo-meeting-minutes-builder 的 `build_official_minutes.py`,見 workflow §5b) |
+
+中繼與其他模式:`minutes.json`(結構化中繼,嚴格 schema)、`subtitles.srt`(轉錄自動產;
+Gemini 時間戳僅分:秒級不宜壓字幕);技術傳承模式產 `<主題>_技術傳承.html`+重點 MD,
+影片模式產重點 MD(結構見 polish-and-summary §B2/B3)。
 
 交付時附「待確認清單」([?] 標記、[聽不清]、推斷的與會者身分)。
 
 ## 與其他 skill 銜接
 
-- **深度會議記錄轉交 `geo-meeting-minutes-builder`**:使用者需要對外/內部會議章節結構、
-  跨會議追蹤(前次待辦進度回顧、ID 連號)、知識萃取 HTML(五類卡片)、或只有手寫摘要
-  沒有錄音(模式 B)時 —— 本 skill **只做轉錄,簡轉繁完成即交棒;順稿與萃取不做**
-  (由對方依其 transcript-cleanup 規則執行,避免二次加工污染「原話」依據)。
+- **深度需求轉交 `geo-meeting-minutes-builder`**:知識萃取 HTML(五類卡片)、
+  對外/內部完整章節結構(客戶疑問/待提供文件/承諾強度分級)、**嚴格**跨會議追蹤
+  (待釐清懸置累計、逾期分析、差異對照表)、或只有手寫摘要沒有錄音(模式 B)時
+  —— 本 skill **只做轉錄,簡轉繁完成即交棒;順稿與萃取不做**(由對方依其
+  transcript-cleanup 規則執行,避免二次加工污染「原話」依據)。
   交接物:`segments.json`、`transcript_raw.txt`、術語表、會議基本資料(日期/出席者名單)、
   引擎名(含時間戳精度註記,Gemini 為分:秒級近似值)、輸出資料夾。
-  本 skill 的會議模式適合「單場、快速、要 HTML 成品」的情境。
+  本 skill 的會議模式=「標準交付組合」情境(含輕量版前次待辦回顧,見 workflow §4)。
 - 講者導向的**卡片化知識庫**(五類分類、跨會議累積、限閱管理)→ 同上轉交;
   本 skill 的技術傳承(handover)模式是**單場敘事型**交接文件(SOP/眉角/Q&A 一頁 HTML)。
 - 技術傳承文件的正式架構圖/流程圖:詢問後呼叫 `geo-infographic-style` 或

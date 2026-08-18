@@ -30,7 +30,7 @@ SVG 規則:`<svg>` 一律帶 `viewBox` 並以 CSS `width:100%; height:auto` 縮�
 
 ## 兩種文件的區塊結構
 
-### 會議記錄(meeting.html)——內容一律取自 minutes.json
+### 重點摘要 HTML(模板 meeting.html)——內容一律取自 minutes.json
 
 1. 頁首:會議名稱、日期/時間/地點/主持、與會者 chips(請假者刪除線+「請假」)
 2. 結論摘要(tldr,3–7 條含時間戳)

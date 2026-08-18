@@ -16,7 +16,10 @@
    使用者提到「多場會議累積追蹤」時預設轉交 geo-meeting-minutes-builder 模式 C;
    明確要「事後自由追問/產 podcast/不花 API 費」才提 NotebookLM 管線
    (engines.md「NotebookLM 路線」節,含風險告知)。
-3. **術語表與會議日期**:詢問是否提供與會者名單/產品名/專有名詞(可跳過);
+3. **參考資料與會議日期**:詢問是否提供(可跳過)——
+   - 術語表/與會者名單/產品名:轉錄專名校正+講者對應;
+   - **RFP/需求文件**:專有名詞與背景脈絡來源(摘要引用時標 `[RFP p.X]`);
+   - **歷次會議記錄**:啟用「前次待辦進度回顧」(§4)並延續待辦編號;
    並確認會議日期(可從檔案時間推定後請使用者確認)——這是相對期限換算的基準。
 
 輸出資料夾預設 `<來源檔名>_minutes\`(與來源檔同層);使用者有指定則從之。
@@ -55,7 +58,10 @@ python scripts/transcribe.py <輸入檔> --engine <選定> --keyterms "詞1,詞2
 依 `polish-and-summary.md` §B 的對應模式:
 
 - **會議模式**:先依萃取七規則產 `minutes.json`(嚴格 schema,null 不猜測),
-  再由 JSON 轉寫 `summary.md`;之後 HTML 也只從 JSON 取值,三份文件不漂移。
+  再由 JSON 轉寫重點摘要 MD;之後 HTML 與 docx 也只從 JSON 取值,各文件不漂移。
+  **有歷次會議記錄輸入時**:重點摘要開頭加「前次待辦進度回顧」表(狀態:已完成/
+  進行中/逾期/**未提及**——未提及必須誠實標記,不推定完成、不默刪),本次新增
+  待辦編號延續前次;需要懸置累計/逾期分析等完整追蹤時轉 minutes-builder 模式 C。
 - **技術傳承/影片模式**:直接產 `summary.md`。
 
 每條重點/決議/步驟必須帶時間戳、可對回逐字稿;不得出現逐字稿沒有的內容。
@@ -63,13 +69,25 @@ python scripts/transcribe.py <輸入檔> --engine <選定> --keyterms "詞1,詞2
 ## 5. HTML 文件
 
 依 `html-doc-spec.md`,以 `templates/meeting.html` 或 `templates/handover.html` 為骨架
-填入內容,產出 `<會議名或主題>_會議記錄.html` / `<會議名或傳承主題>_技術傳承.html`
+填入內容,產出 `<會議名>_重點摘要.html` / `<會議名或傳承主題>_技術傳承.html`
 (**檔名必含會議名稱或內容主題**,離開資料夾仍自明,見 SKILL.md 產出表):
 
 - SVG 時間軸座標按總時長比例換算(spec 有公式);段數超限改清單。
 - 技術傳承的架構圖:內容夠具體時,**主動詢問**是否呼叫 `geo-infographic-style` /
   `geo-bpmn-flow-builder` 產正式圖嵌入(不要不問就跑,那是另一段工作量)。
-- video 模式:重點在 `summary.md`,HTML 用 meeting 模板改標題結構(章節=議題)即可。
+- video 模式:重點在重點摘要 MD,HTML 用 meeting 模板改標題結構(章節=議題)即可。
+
+## 5b. 公文體會議紀錄 docx(會議模式必產,標準交付組合第四件)
+
+由 `minutes.json` 組 official JSON,呼叫同 marketplace 的
+`geo-meeting-minutes-builder` skill `scripts/build_official_minutes.py` 產出
+`YYYYMMDD_<會議名>_會議紀錄_正式版_v1.docx`;格式與轉寫細則以該 skill
+`references/official-format.md` 為權威。對映速查:
+
+- `agenda_items` → 提案N(summary→說明條列;decision→決議條列,未拍板寫
+  「續行研議。」或依實況);`tldr` 不進 docx。
+- `action_items` → 追蹤事項表(負責單位優先填單位,匿名情境照代號;due null→「未定」)。
+- 日期一律轉**民國紀年**;`⚠️`/時間戳/來源標註不進正式版;主持人/記錄人未知填「(待確認)」。
 
 ## 6. 交付
 
