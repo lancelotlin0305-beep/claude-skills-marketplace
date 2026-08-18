@@ -1,5 +1,14 @@
 # CHANGELOG — geo-transcribe-minutes
 
+## 20260818.05(三引擎同場實測:SenseVoice 落地)
+- 新增 `scripts/sensevoice_transcribe.py`:fsmn-vad 分段 → SenseVoiceSmall 逐段辨識
+  → segments.json/transcript_raw.txt/subtitles.srt(含 OpenCC s2twp)。
+  同場 49 分鐘會議實測 **14.6× 即時**(203s,對比 faster-whisper turbo CPU 40 分鐘)。
+- engines.md 記入實戰情報:遠場多人會議上本地引擎(SenseVoice/whisper)品質同級且
+  均低於 Gemini;Windows 需 `HF_HUB_DISABLE_SYMLINKS=1`(funasr hub="hf" 否則
+  WinError 1314);torch 2.13+cpu/funasr 1.4.2 於 Python 3.14 可用;CPU 機密場景
+  首選改 SenseVoice,毫秒級字幕才用 faster-whisper。
+
 ## 20260818.04(首次端到端實測修正:49 分鐘真實會議錄影全程走通)
 - transcribe.py Gemini 引擎兩項實戰修正:
   - **暫時性錯誤退避重試**:503/429/5xx 先重試(20s/40s)再降級,原本只認 404

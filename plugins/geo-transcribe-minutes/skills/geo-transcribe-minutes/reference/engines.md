@@ -10,7 +10,7 @@
 | 有 GEMINI_API_KEY,要說話者標記+重點一次到位 | **gemini**(3.7-flash/2.5-flash) |
 | 有 GROQ_API_KEY,要快要便宜 | **groq**(whisper-large-v3-turbo,1 小時音訊約 15 秒轉完) |
 | 要最準的逐字稿+字級時間戳+說話者 | **elevenlabs**(Scribe) |
-| 錄音不能出機器(機密)、無 GPU | **local**:SenseVoiceSmall(funasr)+ OpenCC;或 faster-whisper int8 |
+| 錄音不能出機器(機密)、無 GPU | **local**:SenseVoiceSmall(`scripts/sensevoice_transcribe.py`,實測 14.6×);字幕要毫秒精度才用 faster-whisper |
 | 錄音不能出機器、有 NVIDIA GPU(8GB+) | **local**:faster-whisper + Breeze-ASR-25 |
 | 台灣國語+中英夾雜嚴重、品質優先 | **Breeze-ASR-25**(聯發科,原生繁體)本地跑,或 gemini |
 | YouTube 影片 | 公開影片直接把 URL 餵 Gemini(免下載);否則 yt-dlp,見下 |
@@ -62,6 +62,14 @@ pip install faster-whisper                     # CPU 可直接用(int8)
 
 ### SenseVoiceSmall(CPU-only 神器)
 - 非自回歸 234M 模型,**CPU 上約 17× 即時**(比 whisper CPU 快一個數量級),中文 CER 顯著低於 whisper;輸出**簡體**、無字級時間戳。
+- **實測(2026-08-18,49 分鐘遠場會議室錄音)**:`scripts/sensevoice_transcribe.py`
+  (VAD 分段→逐段辨識→segments.json/srt,含 s2twp)實跑 **14.6× 即時**(203 秒),
+  對比 faster-whisper turbo CPU 約 40 分鐘。品質:遠場多人交談場景與 whisper 同級
+  (HTML→HTL 之類錯字、偶混情緒表符),**均明顯低於 Gemini**——機密場景用本地引擎
+  時,順稿要有較多人工校對的預期;近場單人錄音才可期待 benchmark 等級表現。
+- **Windows 眉角**:funasr `hub="hf"` 下載需設 `HF_HUB_DISABLE_SYMLINKS=1`
+  (否則 WinError 1314 symlink 權限直接失敗);ModelScope 預設源在台灣常僅 ~1.6MB/s,
+  HF 源較快。torch 2.13+cpu/funasr 1.4.2 於 Python 3.14 實測可用。
 ```powershell
 pip install funasr torch torchaudio opencc-python-reimplemented
 ```

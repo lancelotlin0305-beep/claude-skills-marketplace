@@ -11,7 +11,7 @@ description: >-
   會議記錄請改用 geo-meeting-minutes-builder**;或要求把先前產出的成品迭代更新。
 ---
 
-<!-- skill 20260818.04 -->
+<!-- skill 20260818.05 -->
 <!-- 修改本 skill 時:同步更新上行版號(yyyymmdd.兩位數序號),並在 CHANGELOG.md 增列 -->
 
 # 音檔/影音 → 逐字稿 → 會議記錄/技術傳承文件
