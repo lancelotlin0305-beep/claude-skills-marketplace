@@ -36,6 +36,7 @@ function render(doc, D) {
 
   // ---------------------------------------------------------------- 尺寸求解(先算後畫)
   const cards = D.cards;
+  const poster = !!D.poster;   // 海報模式:素材帶加大出血、經費英雄數字、允許 card.tone:"dark" 焦點卡(§2 重點卡,每頁 1–2 張)
   const cclH = D.conclude ? ch.concludeHeight : 0;
   const gapBand = doc.geo('gap.band');
   const bottomLimit = D.title ? ch.footBaseline - 24 : H - 30;
@@ -71,12 +72,12 @@ function render(doc, D) {
   }));
   const nSec = Math.max(...meas.map(m => m.length));
   const headH = tk.lineHeight(T.note);
-  const heroH = cards.some(c => c.hero) ? 130 : 0;      // L3 素材帶(任一卡有 hero 即全列保留,等高對齊)
-  const footH2 = cards.some(c => c.footer) ? 54 : 0;    // 卡底帶(如經費)
+  const heroH = cards.some(c => c.hero) ? (poster ? 200 : 130) : 0;   // L3 素材帶(任一卡有 hero 即全列保留,等高對齊)
+  const footH2 = cards.some(c => c.footer) ? (poster ? 84 : 54) : 0;  // 卡底帶(如經費;poster 走英雄數字)
   // 槽格線:hero、chain、每節的 head/body、節間分隔線、footer,槽高取全卡最大值
   const slotList = [];
   if (heroH) slotList.push({ key: 'hero', h: heroH });
-  if (chainH) slotList.push({ key: 'chain', h: chainH });
+  if (chainH && !poster) slotList.push({ key: 'chain', h: chainH });   // poster:chain 改騎在素材下緣,不佔槽
   for (let s = 0; s < nSec; s++) {
     if (s > 0) slotList.push({ key: 'div' + s, h: 1 });
     slotList.push({ key: 'head' + s, h: headH });
@@ -84,12 +85,13 @@ function render(doc, D) {
   }
   if (footH2) slotList.push({ key: 'foot', h: footH2 });
   const gapBase = doc.geo('gap.childToFrame') + 4;
+  const padYv = poster ? 14 : padY;
   const natH = slotList.reduce((a, s) => a + s.h, 0);
   const gapN = slotList.length - 1;
-  const flex = cardH - hdrH - padY * 2 - natH - gapBase * gapN;
+  const flex = cardH - hdrH - padYv * 2 - natH - gapBase * gapN;
   const gapExtra = Math.max(0, Math.min(26, gapN ? flex / gapN : 0));
   const step = gapBase + gapExtra;
-  const topOffset = hdrH + padY + Math.max(0, (flex - gapExtra * gapN) / 2);
+  const topOffset = hdrH + padYv + Math.max(0, (flex - gapExtra * gapN) / 2);
 
   doc.v.fillGroup('方案卡列', meas.map((m, i) => Math.max(
     ...m.flatMap(s => s.lines ? s.lines.map(l => tk.textWidth(l, T.body)) : s.rows.flatMap(r => r.map(l => 24 + tk.textWidth(l, T.body)))),
@@ -120,7 +122,39 @@ function render(doc, D) {
     const m = meas[i];
     const b = box(cells[i].x, top, colW, cardH);
     cardBoxes.push(b);
-    doc.card(b, col);
+    const dark = poster && c.tone === 'dark';   // §2 重點卡:深色漸層滿版、白字、對比 ≥4.5
+    if (dark) {
+      doc.push(`<rect x="${b.x}" y="${b.y + tk.shadow('thicknessEdge').dy}" width="${b.w}" height="${b.h}" rx="16" fill="${col.deep}" opacity="0.35"/>`);
+      doc.roundRect(b, { r: 16, fill: `url(#${gradOf(col.key)})`, stroke: col.deep, sw: tk.stroke('card'), filter: 'shadow' });
+    } else doc.card(b, col);
+    const tHead = dark ? 'rgba(255,255,255,0.85)' : ink.muted;
+    const tBody = dark ? '#FFFFFF' : ink.body;
+    const tLine = dark ? 'rgba(255,255,255,0.3)' : ink.line;
+    // 節點鏈繪製(共用):一般模式佔獨立槽;poster 模式騎在素材下緣(貼標語彙)
+    const drawChainAt = (cyC) => {
+      const chips = chains[i];
+      const totW = chips.reduce((a, p) => a + p.w, 0) + (chips.length - 1) * (linkLen + linkGap * 2);
+      let cx2 = b.cx - totW / 2;
+      chips.forEach((p, j) => {
+        if (j > 0) {
+          const lx = cx2 - linkGap - linkLen;
+          if ((c.link || 'single') === 'double') {
+            doc.push(`<line x1="${lx}" y1="${cyC - 4}" x2="${lx + linkLen}" y2="${cyC - 4}" stroke="${col.main}" stroke-width="2.5"/>` +
+                     `<line x1="${lx}" y1="${cyC + 4}" x2="${lx + linkLen}" y2="${cyC + 4}" stroke="${col.main}" stroke-width="2.5"/>`);
+          } else {
+            doc.push(`<line x1="${lx}" y1="${cyC}" x2="${lx + linkLen}" y2="${cyC}" stroke="${col.main}" stroke-width="2.5"/>`);
+          }
+        }
+        const py = cyC - p.h / 2;
+        if (p.strong === 1) doc.push(`<g filter="url(#row)"><rect x="${cx2}" y="${py}" width="${p.w}" height="${p.h}" rx="12" fill="${dark ? '#FFFFFF' : `url(#${gradOf(col.key)})`}"/></g>`);
+        else if (p.strong === 2) doc.push(`<g filter="url(#row)"><rect x="${cx2}" y="${py}" width="${p.w}" height="${p.h}" rx="12" fill="${col.light}" stroke="${col.main}" stroke-width="${tk.stroke('subCard')}"/></g>`);
+        else doc.push(`<g filter="url(#row)"><rect x="${cx2}" y="${py}" width="${p.w}" height="${p.h}" rx="12" fill="#FFFFFF" stroke="${col.edge}" stroke-width="${tk.stroke('subCard')}"/></g>`);
+        const fill = p.strong === 1 ? (dark ? col.deep : '#FFFFFF') : p.strong === 2 ? col.deep : ink.body;
+        let ty = py + (p.h - p.lines.length * pillLineH) / 2 + pillSize * 0.95;
+        p.lines.forEach(ln => { doc.text(ln, cx2 + p.w / 2, ty, { size: pillSize, weight: 700, fill, anchor: 'middle' }); ty += pillLineH; });
+        cx2 += p.w + linkLen + linkGap * 2;
+      });
+    };
     // 深色標題列 + 方案名 + 右側英文白膠囊
     doc.push(`<path d="M${b.x} ${b.y + 16}a16 16 0 0 1 16 -16h${b.w - 32}a16 16 0 0 1 16 16v${hdrH - 16}h${-b.w}z" fill="url(#${gradOf(col.key)})" filter="url(#hdr)"/>`);
     const ht = doc.text(c.title, b.x + cardPad, b.y + hdrH / 2 + T.cardTitle * 0.36, { size: T.cardTitle, weight: 800, fill: '#FFFFFF' });
@@ -134,63 +168,43 @@ function render(doc, D) {
     let y = b.y + topOffset;
     slotList.forEach(s => {
       if (s.key === 'hero') {
-        const hy = y + s.h / 2;
-        if (!doc.asset(c.hero, b.cx, hy, Math.round(s.h * 0.72))) {
-          doc.push(`<circle cx="${b.cx}" cy="${hy}" r="${s.h * 0.34}" fill="${col.light}" stroke="${col.main}" stroke-width="${tk.stroke('subCard')}" filter="url(#card2)"/>`);
-          ic(c.heroIcon || 'cube', b.cx - s.h * 0.18, hy - s.h * 0.18, s.h * 0.36, col.main);
+        // poster:素材放大並上移出血,騎在標題列下緣(交疊語彙,§3.1 貼標例外精神)
+        const hy = y + s.h / 2 - (poster ? 14 : 0);
+        if (!doc.asset(c.hero, b.cx, hy, Math.round(s.h * (poster ? 1.12 : 0.72)))) {
+          doc.push(`<circle cx="${b.cx}" cy="${hy}" r="${s.h * 0.34}" fill="${dark ? 'rgba(255,255,255,0.15)' : col.light}" stroke="${dark ? '#FFFFFF' : col.main}" stroke-width="${tk.stroke('subCard')}" filter="url(#card2)"/>`);
+          ic(c.heroIcon || 'cube', b.cx - s.h * 0.18, hy - s.h * 0.18, s.h * 0.36, dark ? '#FFFFFF' : col.main);
         }
+        if (poster && chains[i].length) drawChainAt(y + s.h - 6);   // 項目膠囊騎在素材下緣
       } else if (s.key === 'foot') {
         if (c.footer) {
-          doc.push(`<rect x="${b.x + cardPad}" y="${y}" width="${innerW}" height="${s.h}" rx="12" fill="${col.light}" stroke="${col.edge}" stroke-width="${tk.stroke('hairline')}"/>`);
-          const ftW = tk.textWidth(c.footer.label, T.sub) + 10 + tk.textWidth(c.footer.value, T.tile, 900);
+          const vSize = poster ? 46 : T.tile;
+          if (!poster) doc.push(`<rect x="${b.x + cardPad}" y="${y}" width="${innerW}" height="${s.h}" rx="12" fill="${col.light}" stroke="${col.edge}" stroke-width="${tk.stroke('hairline')}"/>`);
+          const ftW = tk.textWidth(c.footer.label, T.sub) + 12 + tk.textWidth(c.footer.value, vSize, 900);
           let fx = b.cx - ftW / 2;
-          doc.text(c.footer.label, fx, y + s.h / 2 + T.sub * 0.36, { size: T.sub, weight: 700, fill: ink.body });
-          fx += tk.textWidth(c.footer.label, T.sub) + 10;
-          doc.text(c.footer.value, fx, y + s.h / 2 + T.tile * 0.36, { size: T.tile, weight: 900, fill: col.main });
+          doc.text(c.footer.label, fx, y + s.h / 2 + T.sub * 0.36, { size: T.sub, weight: 700, fill: poster ? tHead : ink.body });
+          fx += tk.textWidth(c.footer.label, T.sub) + 12;
+          doc.text(c.footer.value, fx, y + s.h / 2 + vSize * 0.36, { size: vSize, weight: 900, fill: dark ? '#FFFFFF' : col.main });
         }
       } else if (s.key === 'chain' && chains[i].length) {
-        // 節點鏈:膠囊置中排列;strong 1=深色實心白字、2=專色淺實心深字、0=白底
-        const chips = chains[i];
-        const totW = chips.reduce((a, p) => a + p.w, 0) + (chips.length - 1) * (linkLen + linkGap * 2);
-        let cx2 = b.cx - totW / 2;
-        const cyC = y + s.h / 2;
-        chips.forEach((p, j) => {
-          if (j > 0) {
-            const lx = cx2 - linkGap - linkLen;
-            if ((c.link || 'single') === 'double') {
-              doc.push(`<line x1="${lx}" y1="${cyC - 4}" x2="${lx + linkLen}" y2="${cyC - 4}" stroke="${col.main}" stroke-width="2.5"/>` +
-                       `<line x1="${lx}" y1="${cyC + 4}" x2="${lx + linkLen}" y2="${cyC + 4}" stroke="${col.main}" stroke-width="2.5"/>`);
-            } else {
-              doc.push(`<line x1="${lx}" y1="${cyC}" x2="${lx + linkLen}" y2="${cyC}" stroke="${col.main}" stroke-width="2.5"/>`);
-            }
-          }
-          const py = cyC - p.h / 2;
-          if (p.strong === 1) doc.push(`<g filter="url(#row)"><rect x="${cx2}" y="${py}" width="${p.w}" height="${p.h}" rx="12" fill="url(#${gradOf(col.key)})"/></g>`);
-          else if (p.strong === 2) doc.push(`<g filter="url(#row)"><rect x="${cx2}" y="${py}" width="${p.w}" height="${p.h}" rx="12" fill="${col.light}" stroke="${col.main}" stroke-width="${tk.stroke('subCard')}"/></g>`);
-          else doc.push(`<g filter="url(#row)"><rect x="${cx2}" y="${py}" width="${p.w}" height="${p.h}" rx="12" fill="#FFFFFF" stroke="${col.edge}" stroke-width="${tk.stroke('subCard')}"/></g>`);
-          const fill = p.strong === 1 ? '#FFFFFF' : p.strong === 2 ? col.deep : ink.body;
-          let ty = py + (p.h - p.lines.length * pillLineH) / 2 + pillSize * 0.95;
-          p.lines.forEach(ln => { doc.text(ln, cx2 + p.w / 2, ty, { size: pillSize, weight: 700, fill, anchor: 'middle' }); ty += pillLineH; });
-          cx2 += p.w + linkLen + linkGap * 2;
-        });
+        drawChainAt(y + s.h / 2);
       } else if (s.key.startsWith('div')) {
-        doc.push(`<line x1="${b.x + cardPad}" y1="${y + 0.5}" x2="${b.right - cardPad}" y2="${y + 0.5}" stroke="${ink.line}" stroke-width="${tk.stroke('hairline')}"/>`);
+        doc.push(`<line x1="${b.x + cardPad}" y1="${y + 0.5}" x2="${b.right - cardPad}" y2="${y + 0.5}" stroke="${tLine}" stroke-width="${tk.stroke('hairline')}"/>`);
       } else if (s.key.startsWith('head')) {
         const sec = m[+s.key.slice(4)];
-        if (sec) doc.text(sec.head, b.x + cardPad, y + tk.capHeight(T.note), { size: T.note, weight: 700, fill: ink.muted });
+        if (sec) doc.text(sec.head, b.x + cardPad, y + tk.capHeight(T.note), { size: T.note, weight: 700, fill: tHead });
       } else if (s.key.startsWith('body')) {
         const sec = m[+s.key.slice(4)];
         if (sec) {
           let yy = y;
           if (sec.rows) {
             sec.rows.forEach(r => {
-              doc.push(`<circle cx="${b.x + cardPad + 7}" cy="${yy + tk.capHeight(T.body) * 0.62}" r="5" fill="${col.main}"/>`);
-              r.forEach(ln => { doc.text(ln, b.x + cardPad + 24, yy + tk.capHeight(T.body), { size: T.body, weight: 500, fill: ink.body }); yy += secLH; });
+              doc.push(`<circle cx="${b.x + cardPad + 7}" cy="${yy + tk.capHeight(T.body) * 0.62}" r="5" fill="${dark ? '#FFFFFF' : col.main}"/>`);
+              r.forEach(ln => { doc.text(ln, b.x + cardPad + 24, yy + tk.capHeight(T.body), { size: T.body, weight: 500, fill: tBody }); yy += secLH; });
               yy += 6;
             });
           } else {
             sec.lines.forEach(ln => {
-              doc.push(`<text x="${b.x + cardPad}" y="${yy + tk.capHeight(T.body)}" font-size="${T.body}" font-weight="500" fill="${ink.body}">${hiLine(ln, sec.hi, col)}</text>`);
+              doc.push(`<text x="${b.x + cardPad}" y="${yy + tk.capHeight(T.body)}" font-size="${T.body}" font-weight="500" fill="${tBody}">${hiLine(ln, sec.hi, dark ? { main: '#FFFFFF' } : col)}</text>`);
               doc.v.punctuation(ln); doc.v.font(ln.slice(0, 8), T.body);
               yy += secLH;
             });
