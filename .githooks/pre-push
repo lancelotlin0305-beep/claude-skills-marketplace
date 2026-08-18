@@ -1,0 +1,83 @@
+#!/bin/sh
+# pre-push:plugin 版號一致性檢查(20260818,使用者裁決)
+#
+# 目的:防止「CHANGELOG/CHANGES.md 已進版但 plugin.json 忘了 bump」的脫鉤進入遠端
+#      (同型問題已發生兩次:geo-infographic-style 20260812.09、20260818.01→.08)。
+#
+# 防誤攔設計:
+#   1. 只檢查「本次推送範圍內有異動」的 plugin——歷史遺留脫鉤不擋新推送。
+#   2. 版號抽取格式容錯:取檔案由上而下第一個 20YYMMDD.NN token,
+#      通吃表格式(| 20260818.03 |)、標題式(## 20260818.04(…))、v 前綴(## v20260818.08:)、
+#      CHANGELOG.md 與 CHANGES.md 兩種檔名;抽不到 → 警告放行,不擋。
+#   3. 擋下時直接給修復指令。
+#
+# 啟用(每台機器一次):git config core.hooksPath .githooks
+
+fail=0
+warn() { echo "[version-check] !  $1" >&2; }
+err()  { echo "[version-check] X  $1" >&2; fail=1; }
+
+VER_RE='20[0-9]\{6\}\.[0-9]\{2\}'
+
+while read local_ref local_sha remote_ref remote_sha; do
+  [ -z "$local_sha" ] && continue
+  range_base=""
+
+  # 刪除遠端分支的推送:local_sha 全零,跳過
+  case "$local_sha" in
+    0000000000*) continue ;;
+  esac
+
+  case "$remote_sha" in
+    0000000000*)
+      # 新分支:以與 origin/main 的分岔點為基準;無基準則放行並警告
+      if git rev-parse --verify -q origin/main >/dev/null 2>&1; then
+        range_base=$(git merge-base origin/main "$local_sha" 2>/dev/null)
+      fi
+      if [ -z "$range_base" ]; then
+        warn "新分支且無 origin/main 基準,本次跳過版號檢查"
+        continue
+      fi
+      ;;
+    *)
+      range_base=$remote_sha
+      ;;
+  esac
+
+  plugins=$(git diff --name-only "$range_base" "$local_sha" -- 'plugins/' 2>/dev/null \
+            | cut -d/ -f2 | sort -u)
+
+  for p in $plugins; do
+    pj="plugins/$p/.claude-plugin/plugin.json"
+    pj_ver=$(git show "$local_sha:$pj" 2>/dev/null | grep -o "$VER_RE" | head -1)
+    if [ -z "$pj_ver" ]; then
+      warn "$p:讀不到 plugin.json 版號,放行"
+      continue
+    fi
+
+    cl=$(git ls-tree -r --name-only "$local_sha" "plugins/$p" 2>/dev/null \
+         | grep -E '/(CHANGELOG|CHANGES)\.md$' | grep -v archive | head -1)
+    if [ -z "$cl" ]; then
+      warn "$p:無 CHANGELOG/CHANGES.md,放行"
+      continue
+    fi
+
+    # 由上而下第一個版號 token 即最新版(表格式與標題式的最新列/節皆在檔案頂端)
+    cl_ver=$(git show "$local_sha:$cl" 2>/dev/null | head -60 | grep -o "$VER_RE" | head -1)
+    if [ -z "$cl_ver" ]; then
+      warn "$p:$(basename "$cl") 抽不到版號,放行"
+      continue
+    fi
+
+    if [ "$pj_ver" != "$cl_ver" ]; then
+      err "$p 版號脫鉤:plugin.json=$pj_ver / $(basename "$cl")=$cl_ver
+                修復:將 $pj 的 version 改為 $cl_ver,commit 後重新 push"
+    fi
+  done
+done
+
+if [ $fail -ne 0 ]; then
+  echo "[version-check] push 已擋下(版號脫鉤)。本檢查僅涵蓋此次推送有異動的 plugin。" >&2
+  exit 1
+fi
+exit 0

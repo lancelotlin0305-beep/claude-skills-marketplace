@@ -35,3 +35,15 @@
 
 - 安裝為 plugin 後，skill 會以 `plugin名:skill名` 命名空間生效；請移除 `~/.claude/skills/` 下的同名副本以免重複觸發。
 - `drawio-skill` 需要本機安裝 draw.io desktop（CLI 在 PATH 上），選用的 autolayout 需要 Graphviz。
+
+## Git hooks(版號一致性檢查)
+
+新 clone 或新機器啟用(一次):
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`pre-push` 會檢查**本次推送有異動的 plugin**,其 CHANGELOG/CHANGES.md 最新版號與
+`plugin.json` 是否一致;脫鉤即擋下並給修復指令。歷史遺留不擋、版號抽不到時警告放行,
+細節見 `.githooks/pre-push` 檔頭註解。
