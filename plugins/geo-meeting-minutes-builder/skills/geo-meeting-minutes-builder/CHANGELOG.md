@@ -1,5 +1,15 @@
 # CHANGELOG — geo-meeting-minutes-builder
 
+## 20260818.08(公文體正式版 docx,使用者指定範本)
+- 會議記錄交付新增**公文體正式版 docx**,一律加產;範本源自使用者提供之
+  「宏碁資訊功能對接架構討論會議紀錄」:
+  - `assets/minutes-official-style.docx`:樣式基底(使用者原檔)。
+  - `scripts/build_official_minutes.py`:JSON → docx 產生器(標楷體/置中標題/
+    提案-說明-決議/追蹤事項表/落款;round-trip 測試通過)。
+  - `references/official-format.md`:結構、民國紀年、中文數字項次、公文語彙、
+    工作版→正式版轉寫對映(時間戳/來源標註/待釐清不進正式版)。
+- MD 會議記錄定位為工作版並列交付。
+
 ## 20260818.07(獨立檢核建議單 A:模式 C 次序釐清)
 - SKILL 流程 4 補註:模式 C 實作上**先讀前次記錄延續 ID、再萃取**;流程編號僅為
   章節產出順序,「回顧表置於最前」指排版位置非執行順序(cross-meeting.md 原意)。

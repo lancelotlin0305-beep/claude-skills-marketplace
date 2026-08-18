@@ -11,7 +11,7 @@ description: >-
   若使用者上傳音檔 / 影片檔,先轉交 geo-transcribe-minutes 轉錄成帶時間戳的逐字稿,再接手後續。
 ---
 
-<!-- skill 20260818.07 -->
+<!-- skill 20260818.08 -->
 <!-- 修改本 skill 時:同步更新上行版號(yyyymmdd.兩位數序號),並在 CHANGELOG.md 增列 -->
 
 # 會議記錄產製(輸入 → 逐字稿 → 會議記錄)
@@ -79,6 +79,9 @@ description: >-
 5. **收集疑義** — 寫進會議記錄的「待釐清清單」節(非獨立檔);模式 C 時累加更新、關閉已解決項。
 6. **自我檢核** — 依 `references/extraction-rules.md`「交付前檢核 A」逐條過,有缺失先補正再交付。
 7. **交付並詢問** — 產出存輸出資料夾(使用者指定;未指定則與輸入檔同層),逐檔列出交付。
+   會議記錄**一律加產公文體正式版 docx**(結構/轉寫規則見 `references/official-format.md`,
+   以 `scripts/build_official_minutes.py` 產出;民國紀年、提案/說明/決議、追蹤事項表);
+   MD 為工作版並列,時間戳/來源標註/待釐清只留工作版。
    若本場有值得留存的知識點,**在此問一句是否要加產知識萃取 HTML**(措辭見 `knowledge-extraction.md` §1);
    沒有就不要問。**問完即停,等使用者回覆。**
 8. **知識萃取(僅在使用者要求時)** — 依 `references/knowledge-extraction.md` 萃取內容、
@@ -112,7 +115,8 @@ description: >-
 
 ```
 YYYYMMDD_<會議名>_逐字稿_v<n>.md          # 模式 A 才產
-YYYYMMDD_<會議名>_會議記錄_v<n>.md         # 含待釐清清單節
+YYYYMMDD_<會議名>_會議記錄_v<n>.md         # 工作版,含待釐清清單節
+YYYYMMDD_<會議名>_會議紀錄_正式版_v<n>.docx # 公文體,一律加產(official-format.md)
 YYYYMMDD_<會議名>_會議記錄_對外版_v<n>.md  # 使用者要求才產,移除 🔒 段落
 YYYYMMDD_<會議名>_知識萃取_v<n>.html       # 加選項,使用者要求才產
 YYYYMMDD_<會議名>_版本記錄.md              # 累加,不覆蓋歷史列
