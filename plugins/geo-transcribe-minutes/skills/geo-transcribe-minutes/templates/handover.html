@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><!-- 主題 --> 技術傳承文件</title>
+<style>
+  :root{
+    --ink:#1f2937; --sub:#6b7280; --bg:#f4f6fa; --card:#ffffff; --line:#e5e7eb;
+    --c-blue:#2563eb; --c-green:#059669; --c-orange:#d97706;
+    --c-purple:#7c3aed; --c-red:#dc2626; --c-cyan:#0891b2;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.75;padding:32px 16px}
+  .page{max-width:900px;margin:0 auto}
+  header.hero{background:linear-gradient(135deg,#4c1d95,#7c3aed);color:#fff;
+       border-radius:16px;padding:32px 36px;margin-bottom:24px}
+  header.hero h1{font-size:26px;margin-bottom:10px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:14px;opacity:.92}
+  section.card{background:var(--card);border-radius:12px;border:1px solid var(--line);
+       border-left:4px solid var(--c-blue);box-shadow:0 1px 3px rgba(16,24,40,.06);
+       padding:22px 26px;margin-bottom:18px}
+  section.card h2{font-size:18px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .tag{font-size:12px;color:#fff;border-radius:6px;padding:1px 8px}
+  .accent-blue{border-left-color:var(--c-blue)}     .accent-blue .tag{background:var(--c-blue)}
+  .accent-green{border-left-color:var(--c-green)}   .accent-green .tag{background:var(--c-green)}
+  .accent-orange{border-left-color:var(--c-orange)} .accent-orange .tag{background:var(--c-orange)}
+  .accent-purple{border-left-color:var(--c-purple)} .accent-purple .tag{background:var(--c-purple)}
+  .accent-cyan{border-left-color:var(--c-cyan)}     .accent-cyan .tag{background:var(--c-cyan)}
+  .accent-gray{border-left-color:#9ca3af}
+  ul.points{padding-left:22px} ul.points li{margin:6px 0}
+  ol.steps{padding-left:22px} ol.steps li{margin:10px 0}
+  .ts{font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums;
+      background:#f3f4f6;border-radius:4px;padding:0 6px;white-space:nowrap}
+  code{font-family:Consolas,"Courier New",monospace;font-size:13.5px;
+      background:#f3f4f6;border-radius:4px;padding:1px 6px}
+  pre{background:#1e293b;color:#e2e8f0;border-radius:8px;padding:14px 16px;
+      overflow-x:auto;margin:8px 0;line-height:1.5}
+  pre code{background:none;color:inherit;padding:0}
+  .pitfall{border:1px solid #fde68a;background:#fffbeb;border-radius:10px;
+      padding:12px 16px;margin:10px 0}
+  .pitfall .pt{font-weight:700;color:#92400e;margin-right:6px}
+  table{width:100%;border-collapse:collapse;font-size:14.5px}
+  th{background:#f9fafb;text-align:left;font-weight:600}
+  th,td{border:1px solid var(--line);padding:8px 12px;vertical-align:top}
+  svg{width:100%;height:auto;display:block}
+  details{margin:8px 0}
+  details summary{cursor:pointer;font-weight:600;padding:6px 0}
+  .speech{margin:10px 0}
+  .speech .who{font-weight:600;color:var(--c-purple);margin-right:6px}
+  footer{color:var(--sub);font-size:13px;text-align:center;margin:28px 0 8px}
+  @media print{
+    body{background:#fff;padding:0}
+    section.card{box-shadow:none;break-inside:avoid}
+    pre{background:#f3f4f6;color:#1f2937}
+    details{display:block}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="hero">
+    <h1><!-- 主題,例:XX 系統維運交接 --></h1>
+    <div class="meta">
+      <span>🎙 講者:<!-- 姓名 --></span>
+      <span>📅 <!-- YYYY/MM/DD --></span>
+      <span>⏱ 時長 <!-- hh:mm --></span>
+    </div>
+  </header>
+
+  <section class="card accent-blue">
+    <h2><span class="tag">摘要</span>這份文件能學到什麼</h2>
+    <ul class="points"><!-- 3–5 條 --></ul>
+  </section>
+
+  <section class="card accent-gray">
+    <h2>章節時間軸</h2>
+    <!-- 同 meeting.html 議程時間軸作法:viewBox="0 0 1000 90",依主題切段上色 -->
+    <svg viewBox="0 0 1000 90" role="img" aria-label="章節時間軸">
+      <rect x="0" y="20" width="1000" height="26" rx="6" fill="#e5e7eb"/>
+    </svg>
+  </section>
+
+  <section class="card accent-purple">
+    <h2><span class="tag">架構</span>架構與脈絡</h2>
+    <p><!-- 講者描述的系統組成、資料流、相依關係,2–4 段 --></p>
+    <!-- 複雜架構圖不手刻:呼叫 geo-infographic-style / geo-bpmn-flow-builder 產 SVG 後
+         把 <svg>…</svg> 內容嵌在此處;沒有就刪掉這個註解 -->
+  </section>
+
+  <section class="card accent-cyan">
+    <h2><span class="tag">SOP</span>操作步驟</h2>
+    <!-- 步驟 ≤6 時畫流程帶(圓角矩形+箭頭,viewBox="0 0 1000 80");>6 步刪 SVG 用編號清單 -->
+    <svg viewBox="0 0 1000 80" role="img" aria-label="步驟流程">
+      <!-- 每步:
+      <rect x="0" y="18" width="150" height="44" rx="10" fill="#ecfeff" stroke="#0891b2"/>
+      <text x="75" y="45" font-size="14" text-anchor="middle" fill="#155e75">1. 步驟名</text>
+      <path d="M154 40 h20 l-6 -5 m6 5 l-6 5" stroke="#94a3b8" fill="none" stroke-width="2"/>
+      -->
+    </svg>
+    <ol class="steps">
+      <!-- <li><strong>步驟名</strong> <span class="ts">hh:mm:ss</span><br>說明。
+           指令用 <pre><code>…</code></pre>,不確定拼字標 [?]</li> -->
+    </ol>
+  </section>
+
+  <section class="card accent-orange">
+    <h2><span class="tag">眉角</span>眉角與陷阱</h2>
+    <!-- 一坑一卡,寧多勿漏:
+    <div class="pitfall"><span class="pt">⚠ 坑</span>描述講者提醒的注意事項/踩雷經驗
+      <span class="ts">hh:mm:ss</span></div> -->
+  </section>
+
+  <section class="card accent-green">
+    <h2><span class="tag">Q&A</span>現場問答</h2>
+    <!-- <details><summary>Q:問題 <span class="ts">hh:mm:ss</span></summary>
+         <p>A:回答摘要。</p></details> -->
+  </section>
+
+  <section class="card accent-gray">
+    <h2>相關資源</h2>
+    <table>
+      <thead><tr><th>類型</th><th>名稱/位置</th><th>備註</th></tr></thead>
+      <tbody><!-- 文件/系統/帳號/聯絡人,逐字稿提到才列 --></tbody>
+    </table>
+  </section>
+
+  <section class="card accent-gray">
+    <h2>附錄:逐字稿(順稿版)</h2>
+    <details>
+      <summary>展開全文</summary>
+      <!-- <p class="speech"><span class="ts">hh:mm:ss</span> <span class="who">講者:</span>內容…</p> -->
+    </details>
+  </section>
+
+  <footer>
+    來源:<!-- 檔名 --> ・轉錄引擎:<!-- engine --> ・產出:<!-- YYYY/MM/DD --> ・v1<br>
+    待確認:<!-- [?] 與 [聽不清] 清單,無則寫「無」 -->
+  </footer>
+</div>
+</body>
+</html>
