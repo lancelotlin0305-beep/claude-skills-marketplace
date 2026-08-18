@@ -252,20 +252,33 @@ def run_gemini(audio, keyterms, model=None):
             {"file_data": {"file_uri": finfo["uri"], "mime_type": mime}}]}],
         "generationConfig": {"temperature": 0.1, "maxOutputTokens": 65536},
     }).encode("utf-8")
-    models = [model] if model else ["gemini-3.7-flash", "gemini-2.5-flash"]
+    models = [model] if model else ["gemini-3.7-flash", "gemini-3.6-flash",
+                                    "gemini-3.5-flash"]
+    data = None
     last = None
     for m in models:
-        try:
-            data, _ = http_json(f"{base}/v1beta/models/{m}:generateContent?key={key}",
-                                "POST", {"Content-Type": "application/json"},
-                                payload, timeout=1800)
-            last = None
+        for attempt in range(3):
+            try:
+                data, _ = http_json(
+                    f"{base}/v1beta/models/{m}:generateContent?key={key}",
+                    "POST", {"Content-Type": "application/json"},
+                    payload, timeout=1800)
+                break
+            except RuntimeError as e:
+                last = e
+                mm = re.match(r"HTTP (\d+)", str(e))
+                code = int(mm.group(1)) if mm else 0
+                # 過載/限流/暫時性錯誤 → 退避重試;404 → 直接換下一個模型
+                if code in (429, 500, 502, 503) and attempt < 2:
+                    wait = 20 * (attempt + 1)
+                    info(f"{m} 回應 {code}(暫時性),{wait}s 後重試…")
+                    time.sleep(wait)
+                    continue
+                break
+        if data is not None:
             break
-        except RuntimeError as e:
-            last = e
-            if "404" not in str(e):
-                raise
-    if last:
+        info(f"{m} 不可用,改試下一個模型…")
+    if data is None:
         raise last
     text = "".join(p.get("text", "")
                    for p in data["candidates"][0]["content"]["parts"])

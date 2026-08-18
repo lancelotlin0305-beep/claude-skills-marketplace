@@ -18,6 +18,9 @@
 ## 雲端引擎
 
 ### Gemini(唯一「轉寫+說話者+會議重點」單次呼叫完成的方案)
+- **模型現況(2026-08-18 實測)**:transcribe.py 降級鏈 `gemini-3.7-flash → 3.6-flash
+  → 3.5-flash`;**`gemini-2.5-flash` 已對新用戶關閉(404)勿再用**;3.7-flash 高峰時段
+  常見 503,腳本會自動退避重試(20s/40s)再降級。
 - 音訊:單 prompt 最長 9.5 小時;1 分鐘=1,920 tokens;支援 WAV/MP3/AAC/OGG/FLAC。
 - 成本約 **$0.18/小時**(Flash 系,含摘要 output);有免費層(RPD 低,以 AI Studio 儀表板為準)。
 - 影片:可直接吃影片檔(含畫面理解,~263 tokens/秒,較貴)或**公開 YouTube URL**(preview、目前免費)。只要逐字稿就先抽音軌再丟,便宜 8 倍。

@@ -1,5 +1,14 @@
 # CHANGELOG — geo-transcribe-minutes
 
+## 20260818.04(首次端到端實測修正:49 分鐘真實會議錄影全程走通)
+- transcribe.py Gemini 引擎兩項實戰修正:
+  - **暫時性錯誤退避重試**:503/429/5xx 先重試(20s/40s)再降級,原本只認 404
+    直接炸掉(3.7-flash 高峰時段 503 實測觸發)。
+  - **降級鏈更新**:`gemini-3.7-flash → 3.6-flash → 3.5-flash`;原 fallback
+    `gemini-2.5-flash` 已對新用戶關閉(404 實測),engines.md 同步註記。
+- 實測結果:173MB MP4 → ffmpeg 抽音軌 → gemini-3.6-flash 轉錄 608 段(繁中+
+  說話者標記)→ 順稿 → 技術重點 → handover.html,全程通過。
+
 ## 20260818.03(乾淨 session 架構審查後的分工收斂)
 - **讓出文字入口**:description 明訂既有逐字稿/SRT 僅限順稿、壓字幕、影片重點、技術傳承;
   文字逐字稿要整理會議記錄一律 geo-meeting-minutes-builder。刪除與 description 重複的
