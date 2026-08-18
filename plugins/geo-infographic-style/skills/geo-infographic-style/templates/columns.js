@@ -1,6 +1,8 @@
-// [模板] 族⑥b 並列多欄卡:可選前言卡 → N 張並列卡(深色標題列 + 編號徽章 + 條目 + 卡底權重列)→ 結論帶。
+// [模板] 族⑥b 並列多欄卡:可選前言卡 → N 張並列卡(深色標題列 + 編號徽章 + [素材帶] + 條目 + 卡底權重列)→ 結論帶。
 // 對應原簡報 A.架構設計、B4/B5、部署模式、委託研究單位、質化效益等頁。
 // 元素數量全部可變:欄數 n、每欄條目 n、卡底欄位 n;卡高由最長那欄的內容決定。
+// 選項:欄物件 hero(第 3 級素材名)→ 標題列下方素材帶;頁物件 flow:false → 不畫欄間 chevron
+// (chevron 是流程/遞進語彙,並列「方案選擇」類內容須關閉,箭頭會誤導成先後順序)。
 const { box } = require('../scripts/engine');
 const { icon } = require('../scripts/icons');
 const tk = require('../scripts/tokens');
@@ -14,13 +16,17 @@ function render(doc, D) {
   const warn = (r, m, ref) => doc.v.warn(r, m, ref);
   const ic = (n, x, y, s, c, o = {}) => doc.push(icon(n, x, y, s, c, { warn, ...o }));
   const hueOf = (it, i) => (it.color && P.hue(it.color)) || (it.concept && P.forConcept(it.concept)) || P.hue(i);
-  const gradOf = k => 'xHdr' + k[0].toUpperCase();
-  const bandOf = k => 'xBand' + k[0].toUpperCase();
+  // 漸層 id 依色盤選:geox 用 xHdr/xBand/xSph;default 用 gHdr/gBand/s{Name}(slate→N、gold→Y 為 defs 既定命名)
+  const isGeox = P.name === 'geox-navy';
+  const L = k => ({ slate: 'N', gold: 'Y' }[k] || k[0].toUpperCase());
+  const gradOf = k => (isGeox ? 'xHdr' : 'gHdr') + L(k);
+  const bandOf = k => (isGeox ? 'xBand' : 'gBand') + L(k);
+  const sphOf = k => isGeox ? 'xSph' + L(k) : 's' + k[0].toUpperCase() + k.slice(1);
 
   doc.pageBg().decorBottom();
 
   // ---------------------------------------------------------------- L1 標題帶(可省略)
-  const ch = tk.chrome('16x9');
+  const ch = tk.chrome(doc.mode.name);
   let top = ch.contentTop;
   if (D.title) {
     const tb = doc.text(D.title, M, ch.titleBaseline, { size: T.title, weight: 900, fill: ink.title });
@@ -33,7 +39,8 @@ function render(doc, D) {
   // ---------------------------------------------------------------- 尺寸求解
   const cols = D.columns;
   const hasIntro = !!D.intro;
-  const chev = hasIntro || cols.length > 1 ? 46 : 0;      // 欄間 chevron 通道
+  const showChev = D.flow !== false;                      // 並列方案類內容關閉箭頭(見檔頭)
+  const chev = showChev && (hasIntro || cols.length > 1) ? 46 : doc.geo('gap.col');  // 欄間通道
   const introW = hasIntro ? Math.round(CW * 0.16) : 0;
 
   const colGap = chev;
@@ -41,13 +48,14 @@ function render(doc, D) {
   const colW = Math.round((availW - (cols.length - 1) * colGap) / cols.length);
 
   const hdrH = 60, badgeR = 30, itemIcon = 58, itemGap = 18, cardPad = 22, footH = 46;
+  const heroH = cols.some(c => c.hero) ? 220 : 0;         // 標題列下方素材帶(任一欄有 hero 即全列保留,等高對齊)
   const itemTextW = colW - cardPad * 2 - itemIcon - itemGap;
 
   // 每欄的條目斷行 → 卡高由最長欄決定(等高並列)
   const colItems = cols.map(c => (c.items || []).map(it => ({
     ...it, lines: it.lines || doc.wrap(it.text, T.body, itemTextW),
   })));
-  const natBodyH = Math.max(...colItems.map(items =>
+  const natBodyH = heroH + Math.max(...colItems.map(items =>
     items.reduce((a, it) => a + Math.max(itemIcon, it.lines.length * tk.lineHeight(T.body)) + itemGap, 0) + itemGap), 120);
   const hasFoot = cols.some(c => c.footer);
 
@@ -99,7 +107,7 @@ function render(doc, D) {
     const col = hueOf(c, i);
     const b = box(cx, top, colW, cardH);
     cardBoxes.push(b);
-    if (i > 0 || hasIntro) chevron(cx - colGap / 2 - 14, b.y + cardH * 0.45, col);
+    if (showChev && (i > 0 || hasIntro)) chevron(cx - colGap / 2 - 14, b.y + cardH * 0.45, col);
 
     doc.push(`<rect x="${b.x}" y="${b.y + 6}" width="${b.w}" height="${b.h}" rx="16" fill="${col.main}" opacity="0.14"/>`);
     doc.roundRect(b, { r: 16, fill: '#FFFFFF', stroke: col.main, sw: 2, filter: 'shadow' });
@@ -107,16 +115,25 @@ function render(doc, D) {
     doc.push(`<path d="M${b.x} ${b.y + 16}a16 16 0 0 1 16 -16h${b.w - 32}a16 16 0 0 1 16 16v${hdrH - 16}h${-b.w}z" fill="url(#${gradOf(col.key)})" filter="url(#hdr)"/>`);
     // 編號徽章:騎在標題列左側(貼標語彙,§3.1 例外)
     if (c.badge) {
-      doc.push(`<circle cx="${b.x + badgeR + 6}" cy="${b.y + hdrH / 2}" r="${badgeR}" fill="url(#xSph${col.key[0].toUpperCase()})" filter="url(#obj)"/>`);
+      doc.push(`<circle cx="${b.x + badgeR + 6}" cy="${b.y + hdrH / 2}" r="${badgeR}" fill="url(#${sphOf(col.key)})" filter="url(#obj)"/>`);
       doc.text(c.badge, b.x + badgeR + 6, b.y + hdrH / 2 + T.cardTitle * 0.36, { size: T.cardTitle, weight: 900, fill: '#FFFFFF', anchor: 'middle' });
     }
     const tx = b.x + (c.badge ? badgeR * 2 + 22 : cardPad);
     const ht = doc.text(c.title, tx, b.y + hdrH / 2 + T.cardTitle * 0.36, { size: T.cardTitle, weight: 800, fill: '#FFFFFF' });
     doc.v.inside(`欄「${c.title}」標題`, ht, box(b.x, b.y, b.w - 12, hdrH), '標題列');
 
+    // 素材帶(hero):標題列下方,置中;與條目間細虛線分隔
+    if (heroH) {
+      const hy = b.y + hdrH + heroH / 2 + 4;
+      if (!doc.asset(c.hero, b.cx, hy, Math.round(heroH * 0.7))) {
+        doc.push(`<circle cx="${b.cx}" cy="${hy}" r="${heroH * 0.3}" fill="${col.light}" stroke="${col.main}" stroke-width="${tk.stroke('subCard')}" filter="url(#card2)"/>`);
+        ic(c.heroIcon || 'cube', b.cx - heroH * 0.16, hy - heroH * 0.16, heroH * 0.32, col.main);
+      }
+      doc.push(`<line x1="${b.x + cardPad}" y1="${b.y + hdrH + heroH}" x2="${b.x + b.w - cardPad}" y2="${b.y + hdrH + heroH}" stroke="${col.main}" stroke-width="1.4" stroke-dasharray="5 5" opacity="0.5"/>`);
+    }
     // 條目
     const usedH = colItems[i].reduce((a, it) => a + Math.max(itemIcon, it.lines.length * tk.lineHeight(T.body)) + itemPad + itemGap, 0) + itemGap;
-    let iy = b.y + hdrH + itemGap + Math.max(0, (bodyH - usedH) / 2);
+    let iy = b.y + hdrH + heroH + itemGap + Math.max(0, (bodyH - heroH - usedH) / 2);
     colItems[i].forEach((it, j) => {
       const rowH = Math.max(itemIcon, it.lines.length * tk.lineHeight(T.body)) + itemPad;
       if (j > 0) doc.push(`<line x1="${b.x + cardPad}" y1="${iy - itemGap / 2}" x2="${b.x + b.w - cardPad}" y2="${iy - itemGap / 2}" stroke="${col.main}" stroke-width="1.4" stroke-dasharray="5 5" opacity="0.5"/>`);
@@ -165,7 +182,7 @@ function render(doc, D) {
     const textW = doc.tw(D.conclude.text, T.conclude);
     const blockW = badge + gapT + textW;
     const kx = M + (CW - blockW) / 2;
-    doc.push(`<rect x="${kx}" y="${cb.cy - badge / 2}" width="${badge}" height="${badge}" rx="14" fill="url(#xSph${col.key[0].toUpperCase()})" filter="url(#obj)"/>`);
+    doc.push(`<rect x="${kx}" y="${cb.cy - badge / 2}" width="${badge}" height="${badge}" rx="14" fill="url(#${sphOf(col.key)})" filter="url(#obj)"/>`);
     ic(D.conclude.icon || 'checkboard', kx + badge / 2 - 16, cb.cy - 16, 32, '#FFFFFF');
     const hi = D.conclude.hi || [];
     let rest = D.conclude.text, spans = '';

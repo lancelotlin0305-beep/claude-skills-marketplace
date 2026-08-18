@@ -2,6 +2,11 @@
      註:本註解不得出現字面 defs 標籤,否則 inject_defs.js 的抽取會咬錯位置 -->
 <svg xmlns="http://www.w3.org/2000/svg">
   <defs>
+    <!-- 頁面底圖:極淺縱向漸層(§12 背景;engine.pageBg() 引用。海報式/場景式用,簡報內容頁上緣即純白) -->
+    <linearGradient id="gPage" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EAF1FA"/>
+    </linearGradient>
+
     <!-- 群組帶淺漸層(藍例;其他色相依「頂 97–99% → 底 93–95% 明度」同法) -->
     <linearGradient id="gBandB" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#F8FBFF"/><stop offset="1" stop-color="#E3ECFB"/>
@@ -21,7 +26,8 @@
       <stop offset="0" stop-color="#628CF2"/><stop offset="0.5" stop-color="#3A5CD4"/><stop offset="1" stop-color="#1E379E"/>
     </linearGradient>
     <linearGradient id="gHdrG" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#43C481"/><stop offset="0.5" stop-color="#1F9254"/><stop offset="1" stop-color="#115C34"/>
+      <!-- 中段用 deep 色:白字落點對比 5.2:1(原 #1F9254 中段僅 3.96,低於 §2 的 4.5 門檻) -->
+      <stop offset="0" stop-color="#2FA463"/><stop offset="0.5" stop-color="#187C46"/><stop offset="1" stop-color="#0E5130"/>
     </linearGradient>
     <linearGradient id="gHdrO" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFB552"/><stop offset="0.5" stop-color="#E8890F"/><stop offset="1" stop-color="#B85F00"/>
@@ -36,7 +42,8 @@
       <stop offset="0" stop-color="#F6FBF8"/><stop offset="1" stop-color="#E0F0E7"/>
     </linearGradient>
     <linearGradient id="gHdrT" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#48B87E"/><stop offset="0.5" stop-color="#2E9E5B"/><stop offset="1" stop-color="#166B3D"/>
+      <!-- 同 gHdrG:中段用 deep 色保白字對比 ≥4.5 -->
+      <stop offset="0" stop-color="#35A96B"/><stop offset="0.5" stop-color="#1E7A46"/><stop offset="1" stop-color="#124D2E"/>
     </linearGradient>
     <linearGradient id="gHdrN" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#7488A6"/><stop offset="0.5" stop-color="#5A6E8C"/><stop offset="1" stop-color="#3E4F6E"/>

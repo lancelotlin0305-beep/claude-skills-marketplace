@@ -94,7 +94,7 @@
 
 **外部素材庫(使用者自管,skill 不內含素材檔)**:去背 PNG 素材(命名 `P編號_英文名.png`)存放於使用者指定的素材目錄——Claude Code 以路徑指定(建議 `./geo-assets/`),Claude.ai 於對話中上傳所需素材。繪製第 3 級(§13)時**先向使用者確認素材來源**;有素材以 `<image>` 嵌入 SVG、依卡片比例縮放,**素材已自帶柔和光影,嵌入時不再疊 SVG 物件投影與地面橢圓**。
 
-**缺件時的完整流程見 `references/asset-generation.md`(唯一出處)**:開「元素需求單」(項目 + 對應 prompt,參照 `scripts/asset_prompts.json`)→ 詢問是否用 AI 產圖 → 選供應商(**預設 Gemini,亦支援 OpenAI**)→ 確認環境(不 OK 先引導安裝)→ `scripts/gen_assets.js` 產圖 → 去背(Gemini 走 `scripts/chroma_key.js` 洋紅 chroma-key;OpenAI `background=transparent` 直接透明;避免程式硬切照片)→ **留存素材與所用 prompt** → 驗收(邊緣無毛邊、無殘背、無文字)後嵌入。**API 金鑰一律從環境變數讀取,嚴禁寫進任何 skill 檔案。** 1–3 級或不產圖時依上方四件套現繪。
+**缺件時的完整流程見 `references/asset-generation.md`(唯一出處)**:開「元素需求單」(項目 + 對應 prompt,參照 `scripts/asset_prompts.json`)→ 詢問是否用 AI 產圖 → 選供應商(**預設 Gemini,亦支援 OpenAI**)→ 確認環境(不 OK 先引導安裝)→ `scripts/gen_assets.js` 產圖 → 去背(Gemini 走 `scripts/chroma_key.js` 自動偵測底色;OpenAI `background=transparent` 直接透明;避免程式硬切照片)→ **留存素材與所用 prompt** → 驗收(邊緣無毛邊、無殘背、無文字)後嵌入。**API 金鑰一律從環境變數讀取,嚴禁寫進任何 skill 檔案。** 1–3 級或不產圖時依上方四件套現繪。
 
 真 3D 元素一律外部生成;**整張圖永不交由影像生成模型重繪**;**承載資訊的文字(段落、數據、標籤、標題)一律由 SVG 負責**(生成圖中文字易錯)。**例外**:素材上**可保留簡短專案術語作為視覺標記**(如 `AI`、`KPI`、`GIS`、`API`、`SSO` 等已知短詞),條件為(a)僅限少數已知短詞、(b)**人工驗收拼字完全正確**(拼錯即重產或改由 SVG 疊字)、(c)不得用來承載真正的資訊內容。
 

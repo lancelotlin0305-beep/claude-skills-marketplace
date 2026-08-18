@@ -1,5 +1,70 @@
 # geo-infographic-style 變更清單(貼回原始 repo 用)
 
+## v20260818.01:solution-cards 三項擴充(P42 委託分工頁固化)
+
+- **hero 素材帶**:卡物件 `hero`(第 3 級素材名)+ `heroIcon`(fallback)→ 標題列下方素材槽(130px,任一卡有即全列保留,槽格線對齊)。
+- **卡底 footer 帶**:卡物件 `footer:{label,value}` → 專色淺底帶(如經費),值走粗體係數量測。
+- **匯流帶 merge**:頁物件 `merge:{label,chips[],color}` → 卡列下方全寬帶,各卡以**專色實心箭頭垂直匯入**(「分工支援/匯流」語彙,與 chevron 的遞進、點虛線的輻射區隔);帶內 label + 白膠囊 chips 等距分佈(§3.1 例外②分佈帶)。
+- 至此 solution-cards 覆蓋:方案比較(P27 節點鏈)與分工支援(P42 hero+footer+merge)兩型頁面。
+
+## v20260817.06:未確認事項清理(同步債 + 模式適應 + 粗體係數)
+
+盤點全 skill 未確認事項後,清掉四項會造成實際錯誤或重複踩坑的:
+
+- **補同步第十三輪到本 repo**:v20260817.01(Gemini 3 產圖層升級)當時誤修在 plugin cache——本 repo 的 gen_assets/gen_scene 預設模型一直停在 legacy 的 `gemini-2.5-flash-image`、無 imageConfig、無 gen_scene prompt 留存,期間全靠環境變數覆寫才用到新模型。已整組補齊(腳本、asset-generation.md、CHANGES 條目)。教訓:**skill 檔案的修改一律以 repo 為準、cache 只是安裝副本**。
+- **SKILL.md 版型表更新**:`solution-cards`(比較差異/方案)、`weight-split`(結構×佔比)、`kpi-cards`(佔比/數據)三列標 ✅,消除「已建卻標待建」導致的重複造模板風險。
+- **chrome 依模式取值**:五個模板原寫死 `tk.chrome('16x9')`,A4/自適應下頁面框架座標錯位。`tokens.chrome()` 改為:無該模式專屬 chrome 時以 16:9 為基準依畫布高度等比縮放;模板一律 `tk.chrome(doc.mode.name)`。A4 煙霧測試(weight-split --mode=a4)通過,版面正確適應直式畫布。
+- **粗體英數字寬係數根治**:tokens 新增 `asciiBoldWidthRatio: 0.63`,`textWidth(s, size, weight)` 第三參數 ≥700 時改用粗體係數;kpi-cards/weight-split 的三處 1.12–1.15 個案補丁全數改回正式係數。三頁(P26/P27/P41)重建驗證無回歸。
+
+**仍未處理(已知、待後續)**:橘色標題列白字對比系統性 <4.5(gHdrN/gHdrY 亦未實測);columns 結論帶 dark tone 在 default 色盤會 crash(依賴 geox signature);素材文字真 OCR 偵測;defs 單一來源自動化;場景裝飾性微文字;dual-render 求真 alpha;比較表/Venn、時間軸、流程/循環、樹狀/中心輻射/環形、地理版型待建。
+
+## v20260817.05:新增 weight-split 模板(P41 權重配置頁固化)
+
+- **新增 `templates/weight-split.js`**:權重分流——頂部總量框(內容驅動寬、置中)→ 點虛線分流(§4 輻射語彙,分支專色圓點)→ 分支卡(大數字 + **佔比條**(分支值÷總量,數值已直標、條僅視覺比例) + 可帶明細列(左名稱+權重、右職責,左右撐滿)與底部經費帶)→ 右側**預留/未編列狀態卡**(§3 虛線框 + 灰時鐘 + 灰字)→ 結論帶。對應「呈現結構/層級 × 佔比數據」類頁面。
+- 內容單薄的分支卡依 §3 圖示補位:球面漸層徽章 + 白圖示(與結論帶徽章同質感),徽章尺寸依剩餘空間放大以撐垂直填充(評審實測 65–70% → 修後達標)。
+- 英數粗體相黏第三次實測(PMC、0%):量測係數 1.12–1.15 + 加大間距——此坑已在 kpi-cards(46%)、weight-split(PMC/0%)重複出現,**根因是 asciiWidthRatio 0.55 對 700+ 字重偏窄**,後續可評估在 tokens 增設粗體係數一次解決。
+- 評審流程含「禁止事項」查核的首例:內容規格可攜帶頁面級禁止清單(本例:不得出現推導金額、不得混入 A/C/D、不得呈現算式),評審 prompt 將其列為 blocking 判準。
+
+## v20260817.04:新增 solution-cards 模板 + 行首禁則 + 綠/青綠標題列對比修正(P27 依原稿重繪時固化)
+
+- **新增 `templates/solution-cards.js`**:方案卡列(2–4 張)——深色標題列(方案名 + 右側英文白膠囊)→ **節點鏈**(chain:膠囊 + 連接線;strong 0/1/2 = 白底/深色實心/專色淺實心;link single「—」/double「＝」,雙線為混合/同步語彙)→ 多內文節(節標題 + 段落含 hi 關鍵詞加粗,或 bullet 清單)。對應版型判斷表「比較差異/方案選擇」類。節點鏈承載資訊文字,一律 SVG(P27 曾誤用 AI 素材畫示意圖,原稿的「部署示意圖」實為文字節點鏈——**重繪前先確認示意圖是否承載文字**)。
+- **`tokens.js` wrap() 行首禁則**:全形收尾標點(，。、；：！？）」』)不得成為行首,寧可該行溢寬一字(「…雲端\n，雙向…」實測)。全 skill 斷行共用。
+- **defs.svg 綠/青綠標題列對比修正**:gHdrG/gHdrT 中段原為 main 色(#1F9254 白字對比僅 3.96),整組下移一階、中段改 deep 色(5.2:1),滿足 §2 的 ≥4.5。**已知未解**:gHdrO 橘色中段 (#E8890F≈2.6、deep #C86F04≈3.6) 物理上無法在保持橘色識別下達 4.5——橘色標題列白字對比為系統性限制,待後續評估(改深字或加描邊)。
+- 教訓:規格文件的「逐字稿」可能是 Speaker Notes 而非版面文字——**重繪案一定要以投影片本體的可見文字為 A 項基準**,拿到原圖前不要用講稿補位。
+
+## v20260817.03:columns 模板三項升級 + kpi-cards 槽格線(實作 P26/P27 兩頁時固化)
+
+- **columns 修 default 色盤缺陷**:漸層 id 原寫死 geox 的 `xHdr/xBand/xSph` → 用 default 八色盤時**標題列整條靜默消失**(引用不到漸層,白字落白底)。改依色盤選 id(default 用 `gHdr/gBand/s{Name}`,slate→N、gold→Y 為 defs 既定命名)。
+- **columns 新增 hero 素材帶**:欄物件 `hero`(第 3 級素材名)→ 深色標題列下方素材帶(220px、置中、細虛線與條目分隔),任一欄有 hero 即全列保留以等高對齊;缺件退回圖示圓徽。對應「方案卡上方示意圖」類需求(P27 部署模式)。
+- **columns 新增 `flow:false`**:欄間 chevron 是流程/遞進語彙,並列「方案選擇」類內容會被箭頭誤導成先後順序——關閉後欄距改用 gap.col。
+- **kpi-cards 槽格線對齊**:並列卡各帶各自置中會導致同類元素(標題/圖示/大數字)高度漂移(五模組門檻頁實測)——改全列統一帶槽,每槽高度取全卡最大值、缺內容留空槽;另新增卡頂模組名稱列(title)、label/desc/分隔線全部選填、五欄時等寬欄自動縮到內容寬並整列置中(§3.1)。
+- 素材構圖教訓再驗證:扁寬構圖縮放後視覺重量偏小,hero/單物件 prompt 一律優先 `compact near-square composition filling the frame`(K03、H03 兩次同因重產)。
+
+## v20260817.02:新增 kpi-cards 模板 + 補 defs.svg 頁面底圖漸層
+
+實作「製造業資料斷點」四卡數據圖時,版型判斷表「呈現佔比/數據」列仍為待建,依規矩新增模板(非手繪):
+
+- **新增 `templates/kpi-cards.js`**:KPI 數據卡列——N 張(2–5)等高等寬並列數據卡,每卡由上至下:識別色線(卡頂圓角色帶,套 gHdr 三段漸層)→ 圖示/第 3 級素材 → 小字說明 + 大數字(fitDisplay 依寬回推、**全列取同一字級**以利對照)→ 代表事項 → 分隔線 → 一行解釋(desc)或次要統計(second)。「規劃中」等預留語意依 §1/§3 走灰色時鐘系統(clk + 灰字),不佔彩色。驗收:fillGroup(等寬欄)、inside(逐卡內容)、verticalFill、noOverlap。
+- **半形符號寬度係數**:900 字重下 `%` 等半形符號實寬大於量測比例(asciiWidthRatio 0.55),次要統計的值寬乘 1.15 保險係數並加大值後間距——首版「46%」與「規劃中」重疊即此因。
+- **補 `assets/defs.svg` 的 `gPage`**:engine.pageBg() 引用 `url(#gPage)`,但 default 色盤的 defs 一直沒有此 id(geox 版才有)→ 淺色背景靜默失效。補白 → `#EAF1FA` 極淺縱向漸層(§12)。
+- 版型判斷表「呈現佔比/數據」列可改標 `kpi-cards` ✅。
+- 產圖實測教訓(asset-generation 適用):**鏡面/拋光材質必吃洋紅反射**(金幣、鏡面箭頭直接變粉)——prompt 除 opaque 外還須 `all surfaces matte and non-reflective (no polished chrome, no mirror finishes)`;接腳等細縫殘背用 `--bg=#FF00FF --tol=125~155` 二次挖除。
+- **新增獨立評審流程(`references/qa-review.md`)**:交付前把成品 PNG/SVG + 內容 JSON + 原始資料交由**乾淨上下文的評審 session**(Claude Code 用 subagent)評分——六維度(內容忠實/文字可讀性/版面結構/素材品質/圖文呼應/色彩語彙)各 0–5 分,通過須無 blocking、總分 ≥24/30、無單項 <3,JSON 回報開單回修。動機:產製者自評有確認偏誤,「交付前檢核」人工項由同一上下文執行常流於形式。SKILL 工作流程 5 步 → 6 步(交付前插入評審),交付須附評審 JSON。
+- **新增 `scripts/mag_wipe.js`(色相式洋紅殘影清除)**:訊息式素材(產線、金流場景)常帶洋紅地面陰影/反射,顏色距離法(`chroma_key --tol`)對深洋紅與灰色物件色距重疊、拉高必誤蝕——改以色相判定(min(R−G, B−G) 為洋紅強度)去飽和成中性灰並降 alpha,灰/紫/暖色物件不受影響。asset-generation §4 新增「chroma_key → mag_wipe 收尾」流程。另:單物件 prompt 把「卡片訊息」編進物件(關係與狀態,非僅名詞類別)可大幅提升圖文呼應——實例:機械臂+懸浮 AI 晶片(AI實踐)、資料庫+打結管線+脫落接頭(資料挑戰)、金幣階梯流入外部手掌(支出外流)。
+- **用語清理:「洋紅去背」→「去背」**(使用者指正):步驟名一律稱「去背」,洋紅僅是 chroma 實作手段(去背總原則既有立場)。修正 7 處——asset-generation 決策流程/§4 標題/場景章尾註、style-spec §5 流程句、geox-navy §去背、`gen_scene.js` 檔頭(順帶除掉過時的「免去背」說法)、`gen_assets.js` 完成訊息。鋪洋紅底、`#FF00FF` 等實作說明保留,歷史 CHANGES 不改。
+
+## v20260817.01:第十三輪(Gemini 3 產圖層升級)※2026-08-17 補同步回本 repo
+
+依 2026-08 供應商現況 review 產圖層(`gemini-2.5-flash-image` 已列 legacy;Nano Banana Pro 解決中文亂碼;全系列仍無 alpha 輸出),升級如下:
+
+- **預設模型升級**:`gen_assets.js` 單物件 → `gemini-3.1-flash-image`(Nano Banana 2);`gen_scene.js` 場景式 → `gemini-3-pro-image`(Nano Banana Pro)。`GEMINI_MODEL` 覆寫機制不變。`asset-generation.md` §3 新增「模型選擇」表(用途/模型/單價)。
+- **imageConfig 支援**:兩腳本可指定輸出比例與解析度——`gen_assets.js` manifest 每筆選填 `ar`/`size`(或環境變數 `IMG_AR`/`IMG_SIZE`,設定值留存進 prompts.json;OpenAI 路徑忽略);`gen_scene.js` 走 `IMG_AR`/`IMG_SIZE`。
+- **鐵則 rationale 更新**:「整張圖永不交由生成模型重繪」保留,理由升級為三條(逐字準確率 75–80% 不及驗收線/點陣不可編輯迭代/繞過 validator),明文「模型會寫中文了不構成推翻理由」。
+- **gen_scene 補 prompt 留存**:成功產出即寫輸出目錄 `prompts.json`(含 model、參考圖檔名、imageConfig)。
+- **文件註記**:generateContent 已標 legacy(後繼 Interactions API,現仍可用);Prompt 交接模式註明 Gemini App 免費版即 Nano Banana Pro;去背總原則加註 2026-08 再驗證全系列仍無 alpha。
+- 未處理(下一輪評估):場景「裝飾性微文字」選項;dual-render 白/黑雙底差分求真 alpha。
+- ※此輪當時誤修在 plugin cache 而非本 repo,2026-08-17 隨 v20260817.06 補同步。
+
 ## v20260812.02:hub 圓柱與台座對齊原簡報
 
 以等比並排(裁同一區域、縮到同高)比對原簡報後修正四處,並回寫規格。

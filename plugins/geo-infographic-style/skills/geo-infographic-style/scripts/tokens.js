@@ -76,14 +76,26 @@ function threshold(name) {
 }
 const thresholdRef = name => (RAW.thresholds[name] || {}).ref || '';
 
-/** 取 16:9 頁面框架基準座標。 */
-const chrome = (modeName = '16x9') => RAW.pageChrome[modeName] || null;
+/** 取頁面框架基準座標。無該模式專屬 chrome 時,以 16:9 為基準依畫布高度等比縮放
+ *  (16:9 專屬版式模板換到 A4 時座標不再錯位;自適應模式高度不定,回傳 16:9 基準值)。 */
+function chrome(modeName = '16x9') {
+  const c = RAW.pageChrome[modeName];
+  if (c) return c;
+  const base = RAW.pageChrome['16x9'];
+  const m = RAW.modes[modeName];
+  if (!m || !m.canvas.h) return base;
+  const s = m.canvas.h / 1080;
+  return Object.fromEntries(Object.entries(base).map(([k, v]) => [k, typeof v === 'number' ? Math.round(v * s) : v]));
+}
 
 // ---------- 文字量測(全 skill 共用,不再各自定義) ----------
 const F = RAW.font;
-/** 估算字串寬度:CJK ≈ 字級,半形 ≈ 0.55 字級。 */
-const textWidth = (s, size) =>
-  [...String(s)].reduce((a, ch) => a + (/[\x00-\xff]/.test(ch) ? F.asciiWidthRatio : F.cjkWidthRatio) * size, 0);
+/** 估算字串寬度:CJK ≈ 字級,半形 ≈ 0.55 字級;weight ≥ 700 時半形改用粗體係數
+ *  (0.55 對粗體偏窄——「46%」「PMC」「0%」三頁實測相黏,個案 1.12–1.15 補丁收斂至此)。 */
+const textWidth = (s, size, weight = 400) =>
+  [...String(s)].reduce((a, ch) => a + (/[\x00-\xff]/.test(ch)
+    ? (weight >= 700 ? (F.asciiBoldWidthRatio || 0.63) : F.asciiWidthRatio)
+    : F.cjkWidthRatio) * size, 0);
 /** CJK 字身高 ≈ 字級 × 0.88(驗收字級時用,見 style-spec §6.4)。 */
 const capHeight = size => size * F.capHeightRatio;
 /** 預設行高。 */
@@ -104,11 +116,13 @@ function wrap(text, size, maxW) {
   }
   if (buf) tokensArr.push(buf);
 
+  // 行首禁則:全形收尾標點不得成為行首(「…雲端\n，雙向…」實測),寧可讓該行溢寬一個字元。
+  const NO_LEAD = /^[，。、；：！？）」』]$/;
   const lines = [];
   let cur = '';
   for (const t of tokensArr) {
     const cand = cur + t;
-    if (cur && textWidth(cand, size) > maxW) { lines.push(cur); cur = /^\s$/.test(t) ? '' : t; }
+    if (cur && textWidth(cand, size) > maxW && !NO_LEAD.test(t)) { lines.push(cur); cur = /^\s$/.test(t) ? '' : t; }
     else cur = cand;
   }
   if (cur.trim()) lines.push(cur);

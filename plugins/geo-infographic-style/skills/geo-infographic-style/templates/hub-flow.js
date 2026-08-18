@@ -22,7 +22,7 @@ function render(doc, D) {
 
   // ---------------------------------------------------------------- L1 標題帶
 
-  const ch = tk.chrome('16x9');
+  const ch = tk.chrome(doc.mode.name);
   const titleBox = doc.text(D.title, M, ch.titleBaseline, { size: T.title, weight: 900, fill: ink.title });
   if (D.subtitle) doc.text(D.subtitle, M, ch.subBaseline, { size: T.sub, weight: 500, fill: ink.sub });
   doc.decorTitleRight(titleBox.right);

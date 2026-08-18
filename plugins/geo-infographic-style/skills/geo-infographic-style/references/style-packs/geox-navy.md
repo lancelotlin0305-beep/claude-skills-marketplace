@@ -95,7 +95,7 @@ Strictly no text, no letters, no numbers, no logos, no watermarks.
 `scripts/asset_prompts.geox.json` 的每一則 prompt **已內含完整 GEOX 尾句**(含 `product-visualization quality` 與洋紅底指令),因此 `gen_assets.js` 的 `withTail()` 不會再補預設尾句——這是刻意的,避免兩套風格描述打架。洋紅底指令重複出現(腳本另有 `CHROMA` 常數)無害;保留它是為了 **Prompt 交接模式**——使用者手動貼進 Gemini 時,那段指令必須在 prompt 裡。
 
 ### 去背
-一律 `scripts/chroma_key.js`(自動偵測洋紅底)。**輝光邊緣容易被挖掉**——`--tol` 調低到 45–55、`--alpha` 調到 12–16 保住輝光的半透明外緣。
+一律 `scripts/chroma_key.js`(自動偵測底色)。**輝光邊緣容易被挖掉**——`--tol` 調低到 45–55、`--alpha` 調到 12–16 保住輝光的半透明外緣。
 
 ### 尺寸紀律
 - 每頁 3D 件 ≤ 8 件
