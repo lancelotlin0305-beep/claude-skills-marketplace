@@ -63,7 +63,8 @@ python scripts/transcribe.py <輸入檔> --engine <選定> --keyterms "詞1,詞2
 ## 5. HTML 文件
 
 依 `html-doc-spec.md`,以 `templates/meeting.html` 或 `templates/handover.html` 為骨架
-填入內容,產出 `minutes.html` / `handover.html`:
+填入內容,產出 `<會議名或主題>_會議記錄.html` / `<會議名或傳承主題>_技術傳承.html`
+(**檔名必含會議名稱或內容主題**,離開資料夾仍自明,見 SKILL.md 產出表):
 
 - SVG 時間軸座標按總時長比例換算(spec 有公式);段數超限改清單。
 - 技術傳承的架構圖:內容夠具體時,**主動詢問**是否呼叫 `geo-infographic-style` /

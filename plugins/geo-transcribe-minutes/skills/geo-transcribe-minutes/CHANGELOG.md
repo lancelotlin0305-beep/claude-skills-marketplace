@@ -1,5 +1,11 @@
 # CHANGELOG — geo-transcribe-minutes
 
+## 20260818.06(使用者回饋:HTML 檔名須自明)
+- 最終 HTML 檔名規則變更:`minutes.html`/`handover.html` 改為
+  `<會議名或主題>_會議記錄.html`/`<會議名或傳承主題>_技術傳承.html`——
+  檔名必含會議名稱或內容主題,離開輸出資料夾仍可辨識(SKILL 產出表與 workflow §5 同步)。
+  templates/ 模板檔名不變。
+
 ## 20260818.05(三引擎同場實測:SenseVoice 落地)
 - 新增 `scripts/sensevoice_transcribe.py`:fsmn-vad 分段 → SenseVoiceSmall 逐段辨識
   → segments.json/transcript_raw.txt/subtitles.srt(含 OpenCC s2twp)。

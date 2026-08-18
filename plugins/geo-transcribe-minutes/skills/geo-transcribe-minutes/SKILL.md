@@ -11,7 +11,7 @@ description: >-
   會議記錄請改用 geo-meeting-minutes-builder**;或要求把先前產出的成品迭代更新。
 ---
 
-<!-- skill 20260818.05 -->
+<!-- skill 20260818.06 -->
 <!-- 修改本 skill 時:同步更新上行版號(yyyymmdd.兩位數序號),並在 CHANGELOG.md 增列 -->
 
 # 音檔/影音 → 逐字稿 → 會議記錄/技術傳承文件
@@ -50,7 +50,7 @@ description: >-
 | `transcript.md` | 順稿版逐字稿(分段、發言者、修錯字去贅詞) |
 | `minutes.json` | 會議模式的結構化中繼檔(決議/行動項/風險…,嚴格 schema) |
 | `summary.md` | 會議重點/技術重點/影片重點(依模式) |
-| `minutes.html` / `handover.html` | 最終文件:單檔自足 HTML,內嵌 SVG 時間軸等 |
+| `<會議名或主題>_會議記錄.html` / `<會議名或傳承主題>_技術傳承.html` | 最終文件:單檔自足 HTML,內嵌 SVG 時間軸等。**檔名必含會議名稱或內容主題**(離開資料夾仍自明;主題取 HTML `<title>` 主體,如「AI_skill化開發方法論_技術傳承.html」) |
 | `subtitles.srt` | 字幕(轉錄時自動產;Gemini 引擎時間戳僅分:秒級,不宜壓字幕) |
 
 交付時附「待確認清單」([?] 標記、[聽不清]、推斷的與會者身分)。
