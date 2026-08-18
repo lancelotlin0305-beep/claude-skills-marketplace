@@ -1,8 +1,13 @@
+// ⚠ 已凍結:本檔為舊版手寫座標生成器,僅供對照參考。新版型請寫 templates/ 模板(見 references/engine.md)。
 // [範例生成器] 依「圖文結構語法」規則生成角色/中心輻射圖(3 級同構、圖文並置、hub-spoke)。
 // 內含中性示範資料,他案替換 leftCards/rightCards/hub 資料即可。屬 style-spec §13/§14 的參考實作。
 // 統一圖文結構生成器：五級共用骨架(圖文35:65 鏡像 + hub-spoke)，主圖區豐富度依 LEVEL 遞增。
 // 用法: node gen_role.js <level 1-5> <out.svg> [assetsDir]
 const fs=require('fs'),path=require('path');
+// 本檔為【自適應單張圖表】模式(非 16:9 簡報頁);字級取自 page_modes 的 adaptive 欄(style-spec §6.1)。
+// 若要產 16:9 簡報內頁,請改用 gen_hub_flow.js 或另建 16:9 生成器,不可直接沿用本檔字級。
+const {mode}=require('../page_modes');
+const T=mode('adaptive').type;
 const LEVEL=parseInt(process.argv[2]||'2',10);
 const OUT=process.argv[3];
 const ASSETS=process.argv[4]||'./geo-assets';
@@ -172,7 +177,7 @@ if(scene){
 }
 
 // title
-P(`<text x="${W/2}" y="66" font-size="40" font-weight="900" fill="${TITLE}" text-anchor="middle">○○ 資訊系統　角色架構圖</text>`);
+P(`<text x="${W/2}" y="66" font-size="${T.title}" font-weight="900" fill="${TITLE}" text-anchor="middle">○○ 資訊系統　角色架構圖</text>`);
 P(`<line x1="${W/2-190}" y1="86" x2="${W/2+190}" y2="86" stroke="#3E7BFA" stroke-width="2.5"/><circle cx="${W/2-190}" cy="86" r="4" fill="#3E7BFA"/><circle cx="${W/2+190}" cy="86" r="4" fill="#3E7BFA"/>`);
 
 // ---------- layout ----------
@@ -195,11 +200,11 @@ function card(x,y,c){
   if(wire){P(`<circle cx="${bx}" cy="${by}" r="22" fill="none" stroke="${FAINT}" stroke-width="2"/>`);}
   else{P(`<circle cx="${bx}" cy="${by}" r="22" fill="url(#${R.sph})" filter="url(#obj)"/><ellipse cx="${bx-6}" cy="${by-7}" rx="8" ry="5" fill="#fff" opacity="0.4"/>`);}
   P(domainIcon(c.icon,bx,by,11,'#fff'));
-  P(`<text x="${x+innerPad+56}" y="${y+innerPad+18}" font-size="22" font-weight="800" fill="${c.reserved?'#6B7688':R.deep}">${esc(c.title)}</text>`);
+  P(`<text x="${x+innerPad+56}" y="${y+innerPad+18}" font-size="${T.cardTitle}" font-weight="800" fill="${c.reserved?'#6B7688':R.deep}">${esc(c.title)}</text>`);
   // pill
   const pw=Math.min(250,26+c.pill.length*15.5);
-  if(wire){P(`<rect x="${x+innerPad+56}" y="${y+innerPad+30}" width="${pw}" height="24" rx="12" fill="none" stroke="${FAINT}" stroke-width="1.3"/><text x="${x+innerPad+56+pw/2}" y="${y+innerPad+46}" font-size="14" fill="${MUT}" text-anchor="middle">${esc(c.pill)}</text>`);}
-  else{P(`<rect x="${x+innerPad+56}" y="${y+innerPad+30}" width="${pw}" height="24" rx="12" fill="url(#${c.reserved?'gHdrGray':R.hdr})" filter="url(#row)"/><text x="${x+innerPad+56+pw/2}" y="${y+innerPad+46}" font-size="14.5" font-weight="700" fill="#fff" text-anchor="middle">${esc(c.pill)}</text>`);}
+  if(wire){P(`<rect x="${x+innerPad+56}" y="${y+innerPad+30}" width="${pw}" height="24" rx="12" fill="none" stroke="${FAINT}" stroke-width="1.3"/><text x="${x+innerPad+56+pw/2}" y="${y+innerPad+46}" font-size="${T.pill}" fill="${MUT}" text-anchor="middle">${esc(c.pill)}</text>`);}
+  else{P(`<rect x="${x+innerPad+56}" y="${y+innerPad+30}" width="${pw}" height="24" rx="12" fill="url(#${c.reserved?'gHdrGray':R.hdr})" filter="url(#row)"/><text x="${x+innerPad+56+pw/2}" y="${y+innerPad+46}" font-size="${T.pill}" font-weight="700" fill="#fff" text-anchor="middle">${esc(c.pill)}</text>`);}
   // body
   const bodyY=y+innerPad+titleH+bodyGap;
   const illoX=c.side==='L'?x+innerPad:x+innerPad+listW+gap;
@@ -229,9 +234,9 @@ function card(x,y,c){
     const rdash=r.res?` stroke-dasharray="5 4"`:'';
     P(`<rect x="${listX}" y="${ry}" width="${listW}" height="${rowH}" rx="10" fill="${wire?'#fff':'#fff'}" stroke="${r.res?FAINT:R.edge}" stroke-width="1.4"${rdash} ${wire?'':'filter="url(#row)"'}/>`);
     if(r.res){P(`<g transform="translate(${listX+11},${ry+rowH/2-10})" style="color:${FAINT}"><use href="#clk" width="20" height="20"/></g>`);
-      P(`<text x="${listX+40}" y="${ry+rowH/2+5}" font-size="16" fill="${FAINT}">${esc(r.t)}</text>`);}
+      P(`<text x="${listX+40}" y="${ry+rowH/2+5}" font-size="${T.body}" fill="${FAINT}">${esc(r.t)}</text>`);}
     else{P(`<g transform="translate(${listX+11},${ry+rowH/2-10})" style="color:${wire?FAINT:R.main}"><use href="#chk" width="20" height="20"/></g>`);
-      P(`<text x="${listX+40}" y="${ry+rowH/2+5}" font-size="16" fill="${INK}">${esc(r.t)}</text>`);}
+      P(`<text x="${listX+40}" y="${ry+rowH/2+5}" font-size="${T.body}" fill="${INK}">${esc(r.t)}</text>`);}
   });
   return {h:cardH,inX:c.side==='L'?x+colW:x,cy:y+cardH/2};
 }
@@ -277,23 +282,23 @@ const cbx=hubX+46,cby=hubTop+42;
 if(wire){P(`<circle cx="${cbx}" cy="${cby}" r="22" fill="none" stroke="${FAINT}" stroke-width="2"/>`);}
 else{P(`<circle cx="${cbx}" cy="${cby}" r="22" fill="url(#sCore)" filter="url(#obj)"/><ellipse cx="${cbx-6}" cy="${cby-7}" rx="8" ry="5" fill="#fff" opacity="0.34"/>`);}
 P(`<g transform="translate(${cbx-11},${cby-11})" fill="none" stroke="${wire?FAINT:'#fff'}" stroke-width="2"><circle cx="12" cy="6" r="2.4"/><circle cx="6" cy="17" r="2.4"/><circle cx="18" cy="17" r="2.4"/><path d="M11 8l-4 7M13 8l4 7M8.4 17h7.2"/></g>`);
-P(`<text x="${hubX+80}" y="${hubTop+40}" font-size="25" font-weight="900" fill="${TEAL}">核心系統平台</text>`);
-P(`<text x="${hubX+80}" y="${hubTop+65}" font-size="14.5" font-weight="500" fill="${TEALS}">全生命週期資料模型｜OIDC SSO</text>`);
+P(`<text x="${hubX+80}" y="${hubTop+40}" font-size="${T.lead}" font-weight="900" fill="${TEAL}">核心系統平台</text>`);
+P(`<text x="${hubX+80}" y="${hubTop+65}" font-size="${T.pill}" font-weight="500" fill="${TEALS}">全生命週期資料模型｜OIDC SSO</text>`);
 const hubRows=['案件申請平台（申請・受理）','通報／查詢平台（通報・處理）','系統管理中心（權限・稽核・監控）','介接整合（外部機關・入口網）'];
 const hrx=hubX+28,hrw=hubW-56;let hry=hubTop+92;const hrh=48,hrg=12;
 hubRows.forEach(t=>{
-  if(wire){P(`<rect x="${hrx}" y="${hry}" width="${hrw}" height="${hrh}" rx="11" fill="#fff" stroke="${FAINT}" stroke-width="1.4"/><text x="${hubCX}" y="${hry+hrh/2+6}" font-size="18" font-weight="700" fill="${TEAL}" text-anchor="middle">${esc(t)}</text>`);}
-  else{P(`<g filter="url(#hdr)"><rect x="${hrx}" y="${hry}" width="${hrw}" height="${hrh}" rx="11" fill="url(#gCoreBar)"/></g><ellipse cx="${hubCX}" cy="${hry+9}" rx="${hrw/2-18}" ry="6" fill="#fff" opacity="0.10"/><text x="${hubCX}" y="${hry+hrh/2+6}" font-size="18" font-weight="700" fill="#fff" text-anchor="middle">${esc(t)}</text>`);}
+  if(wire){P(`<rect x="${hrx}" y="${hry}" width="${hrw}" height="${hrh}" rx="11" fill="#fff" stroke="${FAINT}" stroke-width="1.4"/><text x="${hubCX}" y="${hry+hrh/2+6}" font-size="${T.subCard}" font-weight="700" fill="${TEAL}" text-anchor="middle">${esc(t)}</text>`);}
+  else{P(`<g filter="url(#hdr)"><rect x="${hrx}" y="${hry}" width="${hrw}" height="${hrh}" rx="11" fill="url(#gCoreBar)"/></g><ellipse cx="${hubCX}" cy="${hry+9}" rx="${hrw/2-18}" ry="6" fill="#fff" opacity="0.10"/><text x="${hubCX}" y="${hry+hrh/2+6}" font-size="${T.subCard}" font-weight="700" fill="#fff" text-anchor="middle">${esc(t)}</text>`);}
   hry+=hrh+hrg;
 });
 hry+=4;
 P(`<g ${wire?'':'filter="url(#card2)"'}><rect x="${hrx}" y="${hry}" width="${hrw}" height="76" rx="13" fill="#fff" stroke="${wire?FAINT:TEALB}" stroke-width="2"/></g>`);
-P(`<text x="${hubCX}" y="${hry+31}" font-size="17.5" font-weight="800" fill="${TEAL}" text-anchor="middle">三階權限 RBAC＋覆核管理</text>`);
-P(`<text x="${hubCX}" y="${hry+57}" font-size="15" font-weight="600" fill="${INK}" text-anchor="middle">系統管理者 → 角色管理員 → 角色（讀／編／刪）</text>`);
+P(`<text x="${hubCX}" y="${hry+31}" font-size="${T.subCard}" font-weight="800" fill="${TEAL}" text-anchor="middle">三階權限 RBAC＋覆核管理</text>`);
+P(`<text x="${hubCX}" y="${hry+57}" font-size="${T.note}" font-weight="600" fill="${INK}" text-anchor="middle">系統管理者 → 角色管理員 → 角色（讀／編／刪）</text>`);
 
 // caption + legend
-P(`<text x="${hubCX}" y="${hubTop+hubH+30}" font-size="15" fill="${MUT}" text-anchor="middle">— 各角色依權限正向表列存取對應模組・全程數位足跡留痕 —</text>`);
-P(`<g font-size="14" fill="${MUT}">`);
+P(`<text x="${hubCX}" y="${hubTop+hubH+30}" font-size="${T.note}" fill="${MUT}" text-anchor="middle">— 各角色依權限正向表列存取對應模組・全程數位足跡留痕 —</text>`);
+P(`<g font-size="${T.pill}" fill="${MUT}">`);
 P(`<line x1="${W/2-240}" y1="${H-30}" x2="${W/2-205}" y2="${H-30}" stroke="${INK}" stroke-width="3"/><text x="${W/2-198}" y="${H-25}">實線＝本案範圍</text>`);
 P(`<line x1="${W/2+20}" y1="${H-30}" x2="${W/2+55}" y2="${H-30}" stroke="${FAINT}" stroke-width="2" stroke-dasharray="6 5"/><g transform="translate(${W/2+62},${H-40})" style="color:${FAINT}"><use href="#clk" width="18" height="18"/></g><text x="${W/2+86}" y="${H-25}">虛線＋時鐘＝後續擴充</text>`);
 P(`</g>`);

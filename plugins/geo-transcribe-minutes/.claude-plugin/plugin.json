@@ -1,0 +1,9 @@
+{
+  "name": "geo-transcribe-minutes",
+  "description": "把音檔/影音檔/YouTube 連結高效率轉成逐字稿，順稿後萃取會議重點或影片/技術重點，整理成會議記錄或技術傳承文件（MD＋內嵌 SVG 的單檔 HTML）。多引擎自動偵測（Gemini/Groq/ElevenLabs/本地 faster-whisper），中文一律輸出繁體",
+  "version": "20260818.03",
+  "author": {
+    "name": "Lancelot Lin",
+    "email": "lancelot.lin0305@gmail.com"
+  }
+}

@@ -20,9 +20,14 @@ let base, svg;
 try { base = fs.readFileSync(baseFile, 'utf8'); } catch (e) { console.error('找不到 assets/defs.svg:', e.message); process.exit(1); }
 try { svg = fs.readFileSync(path.resolve(target), 'utf8'); } catch (e) { console.error('讀取目標失敗:', e.message); process.exit(1); }
 
-// 取 base defs 內部節點
-const baseInner = (base.match(/<defs>([\s\S]*?)<\/defs>/i) || [, ''])[1].trim();
+// 取 base defs 內部節點。
+// 先剝掉 XML 註解再比對——註解裡若出現字面標籤(defs.svg 的檔頭說明就寫過),
+// 非貪婪比對會從註解內那個標籤起算,把註解殘段與 <svg> 開標籤一起吃進來,產出無法解析的 SVG。
+const baseStripped = base.replace(/<!--[\s\S]*?-->/g, '');
+const baseInner = (baseStripped.match(/<defs>([\s\S]*?)<\/defs>/i) || [, ''])[1].trim();
 if (!baseInner) { console.error('assets/defs.svg 內沒有 <defs> 內容'); process.exit(1); }
+// 防呆:抽出的內容不該再含有 <svg> 開標籤
+if (/<svg\b/i.test(baseInner)) { console.error('defs 抽取異常:內容含 <svg> 開標籤,請檢查 assets/defs.svg 結構'); process.exit(1); }
 
 // 已存在的 id 不重複注入(冪等 + 不覆蓋圖檔自訂同名 def)
 const existingIds = new Set([...svg.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));

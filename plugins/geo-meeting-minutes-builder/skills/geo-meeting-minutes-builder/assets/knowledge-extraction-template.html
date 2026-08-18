@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識萃取 — <!--會議名--></title>
+<style>
+:root{
+  --paper:#F1F3F6; --card:#fff; --ink:#1B2430; --ink-soft:#5A6675; --rule:#D5DAE1;
+  --dom:#2F5FA8; --tec:#0E7C6B; --pro:#B26A00; --acc:#9B2C3B; --pra:#6B4E9B; --warn:#B26A00;
+  --serif:"Noto Serif TC","Songti TC","Source Han Serif TC",Georgia,serif;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+     font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px;margin:0 auto;padding:40px 24px 80px}
+
+/* 表頭 */
+header{border-bottom:2px solid var(--ink);padding-bottom:20px;margin-bottom:32px}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.14em;color:var(--ink-soft);
+         text-transform:uppercase;margin-bottom:12px}
+h1{font:600 30px/1.3 var(--serif);margin:0 0 14px}
+.meta{display:flex;flex-wrap:wrap;gap:6px 28px;font-size:13px;color:var(--ink-soft)}
+.meta b{color:var(--ink);font-weight:600}
+.meta code{font-family:var(--mono);font-size:12px}
+
+/* 區塊 */
+section{margin-bottom:44px}
+h2{font:600 19px/1.4 var(--serif);margin:0 0 6px;padding-bottom:8px;
+   border-bottom:1px solid var(--rule)}
+.note{font-size:13px;color:var(--ink-soft);margin:0 0 18px}
+
+/* SVG 圖 */
+.viz{background:var(--card);border:1px solid var(--rule);border-radius:3px;padding:14px 8px}
+.viz svg{display:block;width:100%;height:auto}
+.axis-label{font:400 10px var(--mono);fill:var(--ink-soft)}
+.bar-num{font:600 11px var(--mono);fill:#fff}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:12px;padding:0 10px;
+        font-size:12.5px;color:var(--ink-soft)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:2px;
+          margin-right:7px;vertical-align:-1px}
+.no-viz{background:var(--card);border:1px dashed var(--rule);border-radius:3px;
+        padding:20px;font-size:13.5px;color:var(--ink-soft);text-align:center}
+
+/* 篩選列 */
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+          margin:0 0 24px;padding:14px;background:var(--card);
+          border:1px solid var(--rule);border-radius:3px;position:sticky;top:0;z-index:5}
+.chip{font:500 13px var(--sans);padding:5px 13px;border:1px solid var(--rule);
+      border-radius:99px;background:transparent;color:var(--ink-soft);cursor:pointer;
+      transition:background .12s,color .12s,border-color .12s}
+.chip:hover{border-color:var(--ink-soft)}
+.chip[aria-pressed="true"]{background:var(--c);border-color:var(--c);color:#fff}
+.chip:focus-visible,.lock-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.spacer{flex:1}
+.lock-btn{font:500 13px var(--sans);padding:5px 13px;border:1px solid var(--acc);
+          border-radius:3px;background:transparent;color:var(--acc);cursor:pointer}
+.lock-btn[aria-pressed="true"]{background:var(--acc);color:#fff}
+
+/* 卡片 */
+.group-label{font:600 13px var(--mono);letter-spacing:.08em;color:var(--ink-soft);
+             margin:28px 0 12px}
+.card{background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--c);
+      border-radius:3px;padding:20px 22px;margin-bottom:14px}
+.card.locked{border:1px solid var(--acc);border-left:4px solid var(--acc)}
+.card-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;margin-bottom:12px}
+.kid{font:600 12px var(--mono);color:var(--c);letter-spacing:.03em}
+.card h3{font:600 17px/1.4 var(--serif);margin:0;flex:1;min-width:220px}
+.tag{font:500 11.5px var(--sans);padding:2px 9px;border-radius:99px;
+     background:color-mix(in srgb,var(--c) 12%,transparent);color:var(--c)}
+.field{margin:0 0 10px;font-size:14.5px}
+.field:last-child{margin-bottom:0}
+.field .k{display:block;font:600 11.5px var(--mono);letter-spacing:.06em;
+          color:var(--ink-soft);margin-bottom:3px}
+.field ol,.field ul{margin:4px 0 0;padding-left:20px}
+.field code{font-family:var(--mono);font-size:13px;background:var(--paper);
+            padding:1px 5px;border-radius:2px}
+/* 踩坑欄:全檔最有價值的一欄,刻意突顯 */
+.pit{background:color-mix(in srgb,var(--warn) 8%,transparent);
+     border-left:2px solid var(--warn);padding:10px 14px;border-radius:0 2px 2px 0;margin-top:12px}
+.foot{margin-top:14px;padding-top:11px;border-top:1px solid var(--rule);
+      display:flex;flex-wrap:wrap;gap:4px 20px;font:400 12px var(--mono);color:var(--ink-soft)}
+.low{color:var(--warn);font-weight:600}
+
+/* 流程草稿 / 對話 */
+.flow{background:var(--card);border:1px solid var(--rule);border-radius:3px;padding:20px 22px}
+.flow h3{font:600 16px var(--serif);margin:0 0 12px}
+.quote{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--ink-soft);
+       border-radius:0 3px 3px 0;padding:16px 20px;margin-bottom:14px}
+.quote p{margin:0 0 8px;font-size:14.5px}
+.quote .who{font:600 12px var(--mono);color:var(--ink-soft)}
+.quote .ctx{margin:10px 0 0;font-size:13px;color:var(--ink-soft);font-style:italic}
+
+.pointer{background:var(--card);border:1px solid var(--rule);border-radius:3px;
+         padding:18px 22px;font-size:14px}
+footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--rule);
+       font:400 12.5px var(--mono);color:var(--ink-soft);line-height:1.9}
+[hidden]{display:none !important}
+
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+@media (max-width:640px){.wrap{padding:24px 14px 60px}h1{font-size:24px}
+  .controls{position:static}}
+@media print{
+  body{background:#fff}.controls{display:none}.wrap{max-width:none;padding:0}
+  .card,.viz,.flow,.quote{break-inside:avoid;border-color:#bbb}
+  .card[hidden]{display:block !important}
+  header::after{content:"本檔含 🔒 限閱內容,請勿外流";display:block;margin-top:10px;
+                font:600 12px var(--mono);color:var(--acc)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">知識萃取 · Knowledge Extraction</div>
+  <h1><!--會議名稱--></h1>
+  <div class="meta">
+    <span><b>會議日期</b> <code><!--YYYY-MM-DD 或「未標註 ⚠️」--></code></span>
+    <span><b>記錄依據</b> 逐字稿(模式 A)</span>
+    <span><b>卡片</b> <code>7 張</code></span>
+    <span><b>版本</b> <code>v1</code></span>
+    <span><b>對應會議記錄</b> <code>YYYYMMDD_xxx_會議記錄_v2.md</code></span>
+  </div>
+</header>
+
+<!-- ═══ 分類分布 ═══ -->
+<section>
+  <h2>分類分布</h2>
+  <p class="note">看這場會議留下的是哪一種知識。領域與流程偏重代表訪談有挖到東西;全是技術則多為內部分享。</p>
+  <div class="viz">
+    <svg viewBox="0 0 900 64" role="img" aria-label="知識點分類分布">
+      <!-- 各段寬度依卡片數佔比;寬度 > 46 才置中標數字;數量 0 的分類不畫 -->
+      <rect x="40"  y="8" width="234" height="28" fill="var(--dom)"/>
+      <text x="157" y="27" text-anchor="middle" class="bar-num">2</text>
+      <rect x="274" y="8" width="234" height="28" fill="var(--pro)"/>
+      <text x="391" y="27" text-anchor="middle" class="bar-num">2</text>
+      <rect x="508" y="8" width="117" height="28" fill="var(--tec)"/>
+      <text x="566" y="27" text-anchor="middle" class="bar-num">1</text>
+      <rect x="625" y="8" width="117" height="28" fill="var(--pra)"/>
+      <text x="683" y="27" text-anchor="middle" class="bar-num">1</text>
+      <rect x="742" y="8" width="118" height="28" fill="var(--acc)"/>
+      <text x="801" y="27" text-anchor="middle" class="bar-num">1</text>
+    </svg>
+    <div class="legend">
+      <span><i style="background:var(--dom)"></i>領域知識 2</span>
+      <span><i style="background:var(--pro)"></i>流程知識 2</span>
+      <span><i style="background:var(--tec)"></i>技術知識 1</span>
+      <span><i style="background:var(--pra)"></i>應對經驗 1</span>
+      <span><i style="background:var(--acc)"></i>對象脈絡 1 🔒</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ 知識分布時間軸(簽名元素;模式 B 改用下方 .no-viz 區塊) ═══ -->
+<section>
+  <h2>知識分布時間軸</h2>
+  <p class="note">知識點落在會議的哪一段。若集中在後段,代表暖場過長,下次可以更早切入正題。</p>
+  <div class="viz">
+    <svg viewBox="0 0 900 130" role="img" aria-label="知識點於會議時間軸上的分布">
+      <line x1="40" y1="90" x2="860" y2="90" stroke="var(--rule)" stroke-width="1"/>
+      <!-- 刻度:每 15 分鐘 -->
+      <g class="axis-label" text-anchor="middle">
+        <line x1="40"  y1="86" x2="40"  y2="94" stroke="var(--rule)"/><text x="40"  y="112">00:00</text>
+        <line x1="245" y1="86" x2="245" y2="94" stroke="var(--rule)"/><text x="245" y="112">00:15</text>
+        <line x1="450" y1="86" x2="450" y2="94" stroke="var(--rule)"/><text x="450" y="112">00:30</text>
+        <line x1="655" y1="86" x2="655" y2="94" stroke="var(--rule)"/><text x="655" y="112">00:45</text>
+        <line x1="860" y1="86" x2="860" y2="94" stroke="var(--rule)"/><text x="860" y="112">01:00</text>
+      </g>
+      <!-- 標記:x = 40 + (卡片秒數 / 總秒數) × 820;同時間往上疊,每張 14px -->
+      <g id="marks">
+        <circle data-cat="dom" cx="128" cy="90" r="5" fill="var(--dom)"><title>KP-DOM-01 觀護處遇紀錄的法定保存年限</title></circle>
+        <circle data-cat="pro" cx="196" cy="90" r="5" fill="var(--pro)"><title>KP-PRO-01 處遇紀錄三段簽核流程</title></circle>
+        <circle data-cat="pro" cx="196" cy="76" r="5" fill="var(--pro)"><title>KP-PRO-02 個案移轉的例外處理</title></circle>
+        <circle data-cat="tec" cx="402" cy="90" r="5" fill="var(--tec)"><title>KP-TEC-01 語音轉文字的專有名詞校正</title></circle>
+        <circle data-cat="dom" cx="565" cy="90" r="5" fill="var(--dom)"><title>KP-DOM-02 前次系統導入失敗的原因</title></circle>
+        <circle data-cat="pra" cx="702" cy="90" r="5" fill="var(--pra)"><title>KP-PRA-01 以現行表單類比說明新流程</title></circle>
+        <circle data-cat="acc" cx="798" cy="90" r="5" fill="var(--acc)"
+                stroke="var(--ink)" stroke-width="1" stroke-dasharray="2 2"><title>🔒 KP-ACC-01 核決層級</title></circle>
+      </g>
+    </svg>
+  </div>
+  <!-- 模式 B 時,改用下面這塊取代整個 .viz:
+  <div class="no-viz">本場無逐字稿時間戳,無法產生知識分布時間軸。</div>
+  -->
+</section>
+
+<!-- ═══ 篩選列 ═══ -->
+<div class="controls">
+  <button class="chip" data-cat="dom" style="--c:var(--dom)" aria-pressed="false">領域知識</button>
+  <button class="chip" data-cat="tec" style="--c:var(--tec)" aria-pressed="false">技術知識</button>
+  <button class="chip" data-cat="pro" style="--c:var(--pro)" aria-pressed="false">流程知識</button>
+  <button class="chip" data-cat="pra" style="--c:var(--pra)" aria-pressed="false">應對經驗</button>
+  <button class="chip" data-cat="acc" style="--c:var(--acc)" aria-pressed="false">對象脈絡 🔒</button>
+  <span class="spacer"></span>
+  <button class="lock-btn" id="lockBtn" aria-pressed="false">隱藏限閱內容</button>
+</div>
+
+<!-- ═══ 卡片 ═══ -->
+<section id="cards">
+  <h2>知識點卡片</h2>
+  <p class="note">依分類分組,組內依來源時間排序。點上方分類可篩選。</p>
+
+  <div class="group-label" data-group="dom">DOM — 領域知識</div>
+
+  <article class="card" data-cat="dom" style="--c:var(--dom)">
+    <div class="card-top">
+      <span class="kid">KP-DOM-01</span>
+      <h3>觀護處遇紀錄的法定保存年限</h3>
+      <span class="tag">領域知識</span>
+    </div>
+    <p class="field"><span class="k">是什麼</span>處遇紀錄自結案日起須保存一定年限,期間不得刪除或覆寫。</p>
+    <p class="field"><span class="k">為什麼重要</span>直接決定系統的資料保留策略與軟刪除設計,做錯要重寫資料層。</p>
+    <div class="field"><span class="k">關鍵細節</span>
+      <ul><li>保存年限:<code>10 年</code>(依客戶口述,法源名稱待確認 ⚠️)</li>
+          <li>起算點為<strong>結案日</strong>,非建檔日</li></ul></div>
+    <div class="pit"><span class="k">踩過的坑</span>客戶提到前一版系統以建檔日起算,稽核時被要求全面重算。</div>
+    <div class="foot">
+      <span>來源 [00:12:40]</span><span>講述者 北檢-觀護人</span><span>信心 中</span>
+    </div>
+  </article>
+
+  <div class="group-label" data-group="pro">PRO — 流程知識</div>
+
+  <article class="card" data-cat="pro" style="--c:var(--pro)">
+    <div class="card-top">
+      <span class="kid">KP-PRO-01</span>
+      <h3>處遇紀錄的三段簽核流程</h3>
+      <span class="tag">流程知識</span>
+    </div>
+    <p class="field"><span class="k">是什麼</span>紀錄自觀護人建立後,須經三段簽核才算正式歸檔。</p>
+    <div class="field"><span class="k">關鍵細節</span>
+      <ol><li>觀護人建立並送出</li><li>科長初核(可退回補正)</li><li>主任觀護人核定</li></ol></div>
+    <div class="foot">
+      <span>來源 [00:20:15]</span><span>講述者 南檢-觀護人</span><span>信心 高</span>
+    </div>
+  </article>
+
+  <div class="group-label" data-group="acc">ACC — 對象脈絡 🔒</div>
+
+  <article class="card locked" data-cat="acc" style="--c:var(--acc)">
+    <div class="card-top">
+      <span class="kid">KP-ACC-01</span>
+      <h3>🔒 核決層級</h3>
+      <span class="tag">對象脈絡</span>
+    </div>
+    <p class="field"><span class="k">事實</span>與會觀護人表示流程變更須經主任觀護人核可,該次會議中未有該職務人員出席。</p>
+    <div class="foot">
+      <span>來源 [00:58:20]</span><span>性質 會議事實</span><span>信心 高</span>
+    </div>
+  </article>
+
+  <!-- 卡片撰寫規則:
+       · 空欄位整欄不顯示,不要印「無」
+       · 參數 / 指令 / 法條用 <code>,照抄不改
+       · 信心「低」時 <span class="low">信心 低 ⚠️</span>
+       · ACC 卡加 class="locked",標題前加 🔒 -->
+</section>
+
+<!-- ═══ 流程草稿(有才出) ═══ -->
+<section>
+  <h2>流程草稿</h2>
+  <p class="note">文字版流程,確認後可轉交 geo-bpmn-flow-builder 畫成正式流程圖。</p>
+  <div class="flow">
+    <h3>處遇紀錄簽核</h3>
+    <p class="field"><span class="k">觸發</span>觀護人完成當次處遇紀錄</p>
+    <p class="field"><span class="k">參與角色</span>觀護人、科長、主任觀護人</p>
+    <div class="field"><span class="k">步驟</span>
+      <ol><li>[觀護人] 建立紀錄並送出 → 待初核</li>
+          <li>[科長] 初核 →(退回補正 / 通過)→ 分支</li>
+          <li>[主任觀護人] 核定 → 正式歸檔</li></ol></div>
+    <p class="field"><span class="k">結束條件</span>紀錄狀態轉為「已歸檔」</p>
+    <div class="pit"><span class="k">待確認 ⚠️</span>退回補正後是否需重跑全部三段,逐字稿未說明。</div>
+    <div class="foot"><span>來源 [00:20:15]–[00:24:02]</span></div>
+  </div>
+</section>
+
+<!-- ═══ 關鍵對話(有才出) ═══ -->
+<section>
+  <h2>關鍵對話</h2>
+  <p class="note">改寫會失真的段落,保留原話。有辯論時雙方都留。</p>
+  <div class="quote">
+    <p class="who">北檢-觀護人 [00:44:10]</p>
+    <p>原話⋯</p>
+    <p class="who">廠商-技術 [00:44:52]</p>
+    <p>原話⋯</p>
+    <p class="ctx">脈絡:此段在討論歷史資料轉入的取捨。</p>
+  </div>
+</section>
+
+<!-- ═══ 延伸問題(有才出) ═══ -->
+<section>
+  <h2>延伸問題</h2>
+  <p class="note">會中被提出但沒有答案的問題。客戶問倒我方的,代表我方領域理解不足。</p>
+  <div class="pointer">
+    <p class="field"><span class="k">EQ-01</span>跨轄區個案移轉時,原轄區的紀錄權限如何處理?
+      <br><span style="color:var(--ink-soft);font:400 12px var(--mono)">提問者 南檢-觀護人 · 來源 [01:02:30] · 我方當場未能回答</span></p>
+  </div>
+</section>
+
+<!-- ═══ 待補問 ═══ -->
+<section>
+  <h2>待補問</h2>
+  <div class="pointer">
+    <p style="margin:0 0 10px">本檔萃取過程發現的缺漏,已回寫進會議記錄的「待釐清清單」節(該檔已推進至 v2)。
+      <strong>權威清單在會議記錄裡</strong>,此處僅摘要:</p>
+    <ul style="margin:0">
+      <li><code>CL-06</code> KP-DOM-01 的法源名稱未確認 —— 問 北檢-觀護人</li>
+      <li><code>CL-07</code> KP-PRO-01 退回補正後是否重跑全流程 —— 問 南檢-觀護人</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  來源逐字稿:YYYYMMDD_xxx_逐字稿_v1.md<br>
+  對應會議記錄:YYYYMMDD_xxx_會議記錄_v2.md<br>
+  產製:YYYY-MM-DD · geo-meeting-minutes-builder<br>
+  🔒 標記者為限閱內容,對外分享前請產製對外版(整段移除,非塗黑)。
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var chips=[].slice.call(document.querySelectorAll('.chip'));
+  var cards=[].slice.call(document.querySelectorAll('.card'));
+  var labels=[].slice.call(document.querySelectorAll('.group-label'));
+  var marks=[].slice.call(document.querySelectorAll('#marks [data-cat]'));
+  var lockBtn=document.getElementById('lockBtn');
+  var active=[], hideLocked=false;
+
+  function apply(){
+    var showAll=active.length===0;
+    cards.forEach(function(c){
+      var cat=c.dataset.cat;
+      var on=(showAll||active.indexOf(cat)>-1) && !(hideLocked&&cat==='acc');
+      c.hidden=!on;
+    });
+    labels.forEach(function(l){
+      var g=l.dataset.group;
+      var any=cards.some(function(c){return c.dataset.cat===g&&!c.hidden;});
+      l.hidden=!any;
+    });
+    marks.forEach(function(m){
+      var cat=m.dataset.cat;
+      var on=(showAll||active.indexOf(cat)>-1) && !(hideLocked&&cat==='acc');
+      m.style.opacity=on?1:0.15;
+    });
+    chips.forEach(function(ch){
+      if(ch.dataset.cat==='acc') ch.disabled=hideLocked;
+    });
+  }
+  chips.forEach(function(ch){
+    ch.addEventListener('click',function(){
+      var cat=ch.dataset.cat, i=active.indexOf(cat);
+      if(i>-1){active.splice(i,1);ch.setAttribute('aria-pressed','false');}
+      else{active.push(cat);ch.setAttribute('aria-pressed','true');}
+      apply();
+    });
+  });
+  lockBtn.addEventListener('click',function(){
+    hideLocked=!hideLocked;
+    lockBtn.setAttribute('aria-pressed',hideLocked?'true':'false');
+    lockBtn.textContent=hideLocked?'顯示限閱內容':'隱藏限閱內容';
+    apply();
+  });
+  apply();
+})();
+</script>
+</body>
+</html>

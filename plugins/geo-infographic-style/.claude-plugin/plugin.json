@@ -1,7 +1,7 @@
 {
   "name": "geo-infographic-style",
   "description": "依「多色群組卡 × 淺色分層 × 擬 3D」統一風格，將結構化資料繪製成簡報級資訊圖表（SVG 繪製、轉出高解析 PNG），支援 1–3 級畫面豐富度與場景式素材（圖文呼應）",
-  "version": "20260810.01",
+  "version": "20260818.01",
   "author": {
     "name": "Lancelot Lin",
     "email": "lancelot.lin0305@gmail.com"

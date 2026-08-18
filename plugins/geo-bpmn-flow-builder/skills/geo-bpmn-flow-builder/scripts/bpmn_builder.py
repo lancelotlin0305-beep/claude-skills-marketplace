@@ -1686,14 +1686,22 @@ def _assign_side_channels(p):
                 and n["y"] < y1 and n["y"] + n["h"] > y0]
         store = S.setdefault("_near_cx", {})
         ox = S.get("ox", POOL_X)
+        # 直行走廊是否被擋(20260818.01):障礙物與來源↔目標欄位 x 範圍重疊
+        # 即為「需繞」——即使通道地帶本身淨空(障礙與欄同寬、右緣切齊的常見
+        # 情形),也應收緊到「欄外緣+邊距」而非泳道邊緣;2 倍寬泳道下泳道邊緣
+        # 距欄位數百 px,實測繞行 1487px vs 直達 293px(使用者標紅案例)。
+        corr_lo = min(S["x"], T["x"])
+        corr_hi = max(S["x"] + S["w"], T["x"] + T["w"])
+        corridor_blocked = any(n["x"] < corr_hi and n["x"] + n["w"] > corr_lo
+                               for n in obst)
         # 右側近通道
         ln = max(S["lane"], T["lane"]); en = S if S["lane"] == ln else T
         lane_r = en.get("_lane_right", ox + POOL_HEADER_W + (ln + 1) * LANE_W)
         base_r = max(ports(S)["right"][0], ports(T)["right"][0])
         blk = [n["x"] + n["w"] for n in obst
                if n["x"] + n["w"] > base_r and n["x"] < lane_r - 14]
-        if blk:
-            cx = min(max(blk) + MARGIN, lane_r - 14)
+        if blk or corridor_blocked:
+            cx = min(max(blk + [base_r]) + MARGIN, lane_r - 14)
             if cx > base_r + 12:
                 store[("sideRight", tg)] = cx
         # 左側近通道
@@ -1702,8 +1710,8 @@ def _assign_side_channels(p):
         base_l = min(ports(S)["left"][0], ports(T)["left"][0])
         blk = [n["x"] for n in obst
                if n["x"] < base_l and n["x"] + n["w"] > lane_l + 14]
-        if blk:
-            cx = max(min(blk) - MARGIN, lane_l + 14)
+        if blk or corridor_blocked:
+            cx = max(min(blk + [base_l]) - MARGIN, lane_l + 14)
             if cx < base_l - 12:
                 store[("sideLeft", tg)] = cx
 

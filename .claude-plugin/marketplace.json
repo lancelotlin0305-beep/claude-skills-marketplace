@@ -8,7 +8,7 @@
     {
       "name": "geo-bpmn-flow-builder",
       "source": "./plugins/geo-bpmn-flow-builder",
-      "description": "把流程說明、會議記錄或現有流程圖轉成符合 BPMN 規則的直式流程圖，固定輸出 6 檔並支援迭代進版"
+      "description": "把流程說明、會議記錄或現有流程圖轉成符合 BPMN 規則的直式流程圖（另支援不套泳道的簡易模式與橫式版面），必產 3 檔（流程說明 MD、流程定義 .py、版本記錄表）＋可選 3 檔（圖檔 XML、SVG、HTML 檢視器），支援迭代進版"
     },
     {
       "name": "geo-rfp-work-breakdown",
@@ -24,6 +24,16 @@
       "name": "geo-infographic-style",
       "source": "./plugins/geo-infographic-style",
       "description": "依「多色群組卡 × 淺色分層 × 擬 3D」統一風格，將結構化資料繪製成簡報級資訊圖表（SVG 繪製、轉出高解析 PNG），支援 1–3 級畫面豐富度與場景式素材（圖文呼應）"
+    },
+    {
+      "name": "geo-transcribe-minutes",
+      "source": "./plugins/geo-transcribe-minutes",
+      "description": "把音檔/影音檔/YouTube 連結轉成逐字稿，順稿後萃取會議重點或影片/技術重點，整理成會議記錄或技術傳承文件（逐字稿 MD＋重點 MD＋內嵌 SVG 的單檔 HTML，可選 SRT）。多引擎自動偵測（Gemini/Groq/ElevenLabs/OpenAI/本地 faster-whisper 與 SenseVoice），中文一律輸出繁體台灣用語"
+    },
+    {
+      "name": "geo-meeting-minutes-builder",
+      "source": "./plugins/geo-meeting-minutes-builder",
+      "description": "把會議逐字稿/手寫摘要/簡報等資料轉成「整理後逐字稿 MD＋會議記錄 MD＋版本記錄表」，支援對外/內部會議結構、無逐字稿模式、跨會議追蹤（前次待辦進度回顧、ID 連號）；交付後可加選知識萃取 HTML（五類卡片＋SVG 知識分布圖）供技能與知識傳承。音檔/影片由 geo-transcribe-minutes 先轉錄"
     }
   ]
 }

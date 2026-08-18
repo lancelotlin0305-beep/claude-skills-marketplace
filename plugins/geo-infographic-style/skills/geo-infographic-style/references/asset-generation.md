@@ -2,11 +2,13 @@
 
 當使用者選擇 **第 3 級(素材場景)**,或任何等級明確要求嵌入「擬真去背素材」時,依本文件走完整流程再進入繪製。**整張圖永不交由影像生成模型重繪;AI 只產「單一物件去背素材」,文字與版面 100% 由 SVG 負責。**
 
+> **為什麼 Nano Banana Pro 之後鐵則仍然成立**(2026-08 更新):Gemini 3 世代(Nano Banana Pro)已大幅解決圖內中文亂碼,但整張圖直出仍不合格,理由已與亂碼無關——(a) 圖內文字實測準確率約 75–80%,達不到「文案逐字忠於原始資料」的驗收線;(b) 點陣圖不可局部編輯、不可版本迭代,改一個字就整張重生且版面重排;(c) 生成圖繞過 validator(溢出/字級/填充率)整套驗收。**「模型會寫中文了」不構成推翻本鐵則的理由。**
+
 > **安全鐵則**:API 金鑰**一律從環境變數讀取**(`GEMINI_API_KEY` / `OPENAI_API_KEY`),**嚴禁**寫進任何 skill 檔案、腳本、SVG、圖檔或 `prompts.json`。金鑰只在執行當下由使用者以環境變數傳入(如 `GKEY=... node ...`),用完不留存。**若金鑰不慎被貼進對話、指令或日誌,即視為已洩漏——完成後立即到供應商後台撤銷/輪替該金鑰。**
 
 ## 去背總原則(先讀,無條件)
 
-> **所有素材一律去背成透明 PNG,與底色無關。** 去背不是「看到洋紅才做」的條件動作——**每一件生成素材都要透明浮貼**,讓卡片漸層從空隙自然透出。洋紅 `#FF00FF` 只是 Gemini 不給真 alpha 時我們**刻意鋪的一層好挖的 chroma 底色**(實作手段,非判斷條件);`chroma_key.js` 已能**自動偵測四角背景色**,綠幕/白底/任意純色底都能挖。
+> **所有素材一律去背成透明 PNG,與底色無關。** 去背不是「看到洋紅才做」的條件動作——**每一件生成素材都要透明浮貼**,讓卡片漸層從空隙自然透出。洋紅 `#FF00FF` 只是 Gemini 不給真 alpha 時我們**刻意鋪的一層好挖的 chroma 底色**(實作手段,非判斷條件);`chroma_key.js` 已能**自動偵測四角背景色**,綠幕/白底/任意純色底都能挖。(2026-08 再驗證:Nano Banana 全系列——含 Pro 與 3.1——**仍不輸出 alpha 通道**,chroma-key 流程維持必要。)
 >
 > **唯一的技術例外:真・半透明玻璃無法乾淨去背**(背景色會透進物件邊緣變色)。要保留半透明感 → 走 OpenAI 真 alpha;否則材質改「不透明霧面」(見「場景式素材」)。
 
@@ -42,8 +44,8 @@
   │    └─ 不能(雲端/受限環境) → 走「Prompt 交接模式」:Claude 產 prompt → 使用者自產貼回 → Claude 去背組裝
   │
   ├─ Q4 選供應商(預設 Gemini)
-  │    ├─ Gemini(Nano Banana,預設)
-  │    └─ OpenAI(gpt-image-1)
+  │    ├─ Gemini(預設;單物件走 Nano Banana 2、場景走 Nano Banana Pro,見「模型選擇」)
+  │    └─ OpenAI(gpt-image-1;需真半透明時)
   │
   ├─ 確認環境(見下「環境檢查」)
   │    └─ 不 OK → 引導安裝/設定 → 再次確認 → OK 才往下
@@ -51,7 +53,7 @@
   ├─ 產出流程(見下「產出流程」)
   │    ├─ 開元素需求單(項目 ↔ prompt)
   │    ├─ 呼叫 API 產圖(重試退避)
-  │    ├─ 去背(Gemini 走洋紅 chroma-key;OpenAI 直接透明)
+  │    ├─ 去背(Gemini 走 chroma_key.js 自動偵測底色;OpenAI 直接透明)
   │    ├─ 儲存素材 PNG + 儲存所用 prompt(prompts.json)
   │    └─ 驗收(邊緣無毛邊、無殘背、無文字)
   │
@@ -72,6 +74,7 @@
      - 驗證金鑰:`GET https://generativelanguage.googleapis.com/v1beta/models?key=$KEY`(200 即有效)。
      - **影像生成需開通 billing**:免費層影像配額 = 0(`generate_content_free_tier_requests, limit: 0`);文字模型免費、影像不免費。若回 429 且 `limit: 0`,請使用者到對應 Google Cloud 專案綁定帳單後再試。
      - 本機 `gemini` CLI 個人免費層登入已被封鎖(`UNSUPPORTED_CLIENT`),**不要走 CLI**,一律走 REST API。
+     - **端點註記(2026-08)**:官方已將 `generateContent` 標為 legacy,後繼為 Interactions API;Nano Banana 全系列**目前仍支援 generateContent**,本 skill 腳本繼續沿用。若日後回 404 或收到遷移公告,再改端點。
    - **OpenAI**:`OPENAI_API_KEY`。
      - 驗證金鑰:`GET https://api.openai.com/v1/models`(帶 `Authorization: Bearer $KEY`)。
      - `gpt-image-1` 需帳號通過組織驗證(verification);若回 403 需使用者於 OpenAI 後台完成驗證。
@@ -89,6 +92,19 @@
 - 光源一律左上,全圖素材複雜度一致。
 
 ### 3. 呼叫 API
+
+**模型選擇(2026-08 現況)**:`gemini-2.5-flash-image` 已被官方列為 legacy,預設值已升級;`GEMINI_MODEL` 環境變數可覆寫。
+
+| 用途 | 預設模型 | 定位 | 約略單價 |
+|---|---|---|---|
+| 單物件素材(`gen_assets.js`) | `gemini-3.1-flash-image`(Nano Banana 2) | 主力,最高 4K | ~$0.045–0.15/張 |
+| 場景式素材(`gen_scene.js`) | `gemini-3-pro-image`(Nano Banana Pro) | 複雜場景、多模態風格鎖最強 | ~$0.13–0.24/張 |
+| 大量草稿/試版 | `gemini-3.1-flash-lite-image`(僅 1K) | 最快最便宜 | ~$0.034/張 |
+
+**比例與解析度(imageConfig)**:兩支腳本支援指定輸出比例(1:1~21:9,含 8:1 等極寬條)與解析度(1K/2K/4K;Lite 僅 1K):
+- `gen_assets.js`:manifest 每筆選填 `"ar":"4:5"`、`"size":"2K"`;或環境變數 `IMG_AR` / `IMG_SIZE` 設全批預設(留存進 prompts.json;OpenAI 路徑忽略)。
+- `gen_scene.js`:環境變數 `IMG_AR` / `IMG_SIZE`。
+- 用途:場景照**卡片實際比例**直出,減少浮貼後的兩側留白;全寬基礎橫帶場景用 `21:9`/`8:1`;封面級主視覺升 `2K`。
 
 本 skill 提供兩支產圖腳本,擇一即可:
 
@@ -109,15 +125,16 @@
   - **OpenAI**:`gpt-image-1` 支援 `background:"transparent"`,直接輸出 PNG alpha,通常免去背(仍需驗收)。
 - 每呼叫一次,`gen_assets.js` 會把該素材**所用的 prompt 一併寫入輸出目錄的 `prompts.json`**(含 provider、model、timestamp),供日後重現與稽核。
 
-### 4. 去背(通用純色 chroma-key,不限洋紅)
+### 4. 去背(通用純色 chroma-key)
 `NODE_PATH=$(npm root -g) node scripts/chroma_key.js <素材目錄> [檔名...] [--bg=#FF00FF] [--tol=70] [--loose] [--pad=8] [--alpha=20]`
 - **通用化**:不再寫死洋紅——`--bg=#hex` 指定要挖的背景色;**省略則自動偵測四角背景色**。以顏色距離(`--tol`,預設 70)判定 + 邊緣羽化 + 自動裁切到不透明邊界。綠幕、白底、任意純色底皆可。
 - **原則:產製的素材一律去背成透明 PNG**(除非走 OpenAI 真透明)。物件須**不透明**才能乾淨去背;半透明玻璃請改「不透明霧面」(見「場景式素材」)。
 - **淺色物件邊緣被裁**時調 `--alpha`(裁切保留門檻,預設 20;白色物件降到 8–12 保住淡邊);`--pad` 調外擴;`--tol` 調挖除範圍(殘背調高、誤蝕調低)。失敗回非零結束碼。
+- **深色洋紅殘影(地面陰影/反射)挖不掉時改跑 `scripts/mag_wipe.js <png...>`**:顏色距離法對「深洋紅陰影」與「灰色物件」的色距重疊,`--tol` 拉高必誤蝕。mag_wipe 改以**色相**判定(R、B 同時明顯高於 G 即洋紅),把殘影去飽和成中性灰並降 alpha;灰(R≈G≈B)、紫(B≫R)、暖色(B<G)物件皆不受影響。典型流程:chroma_key 挖背 → 仍見洋紅陰影 → mag_wipe 收尾。
 
 ### 5. 驗收與嵌入
 - 驗收:邊緣無毛邊、無殘留背景色、物件完整未被誤蝕;**無亂碼文字**(簡短專案術語如 `AI`/`KPI`/`GIS` 可保留,但須拼字完全正確,拼錯即重產;承載資訊的文字仍由 SVG,見 style-spec §5)。若要術語出現,設環境變數 **`ALLOW_TERMS=1`**(泛指短代號)或 **`ALLOW_TERMS=AI,KPI`**(指定清單)——`gen_assets.js`/`generate_assets.py` 會自動移除尾句的 `no text` 限制並放行該短詞(承載資訊文字仍禁)。
-- 嵌入:`<image href="data:image/png;base64,...">`(可攜)或相對路徑;**素材已自帶柔和光影,嵌入時不再疊 SVG 物件投影 `obj` 與地面扁橢圓**;依卡片比例 `preserveAspectRatio` 縮放。
+- 嵌入:在內容 JSON 的元素加 `"asset": "P編號_英文名"`,再以 `node scripts/build.js ... --level=3 --assets=<素材目錄>` 產圖;引擎會自動選相對路徑或內嵌 base64。**素材已自帶柔和光影,嵌入時不再疊 SVG 物件投影 `obj` 與地面扁橢圓**;依卡片比例 `preserveAspectRatio` 縮放。
 
 ## Prompt 交接模式(離線產圖,雲端/受限環境專用)
 
@@ -126,7 +143,7 @@
 1. **開元素需求單**:同「產出流程 §1」,列出每卡 `{id, name}`。
 2. **產出可直接貼上的完整 prompt**:每件素材給一段**成品 prompt**(已含「主題物件 + 材質色系」+ 固定尾句 + chroma 底/不透明指令,見 §2 Prompt 規範),使用者複製即可用;逐件編號對應需求單。**把整批 prompt 一次輸出**成清單,方便使用者批次產。
    - 走真透明(半透明玻璃)時改附「transparent background」版 prompt,略去洋紅底指令。
-3. **使用者自行產圖**:在自己的 ChatGPT / Gemini / 其他工具貼 prompt 產圖,把成品**貼回對話**(或存進素材目錄)。
+3. **使用者自行產圖**:在自己的 ChatGPT / Gemini / 其他工具貼 prompt 產圖,把成品**貼回對話**(或存進素材目錄)。(2026-08 註:Gemini App 免費版即為 Nano Banana Pro,中文與細節品質已與 API 版一致——交接模式的產圖品質不再打折。)
 4. **Claude 收圖 → 去背 → 驗收 → 組裝**:對貼回的 PNG 跑 `chroma_key.js`(自動偵測底色)去背 → 驗收(無毛邊/殘背/亂碼文字)→ `<image>` 嵌入 SVG。若使用者已自行去背成透明 PNG,略過去背直接驗收。
 5. **留存**:把所用 prompt 寫入 `prompts.json`(標 `provider: "user-supplied"`),素材存素材目錄,同 §產出物與留存。
 
@@ -136,16 +153,16 @@
 
 當卡片需要「**一整組會呼應文字的場景**」而非單一物件(如發展藍圖每卡),改走此路徑——效果比單物件強一個檔次:
 
-- **工具**:`scripts/gen_scene.js`(多模態:**風格參考圖 + 文字 prompt** 一起送 Gemini)。用法:`GKEY=$KEY node scripts/gen_scene.js <參考圖> <prompt檔|字串> <輸出.png>`。
+- **工具**:`scripts/gen_scene.js`(多模態:**風格參考圖 + 文字 prompt** 一起送 Gemini,預設 `gemini-3-pro-image`)。用法:`GKEY=$KEY node scripts/gen_scene.js <參考圖> <prompt檔|字串> <輸出.png>`;可用 `IMG_AR`/`IMG_SIZE` 指定比例與解析度。每次成功產出會把 prompt、model 與參考圖檔名寫入輸出目錄 `prompts.json`(與 `gen_assets.js` 同格式,供重現與稽核)。
 - **鎖風格**:提供一張**風格參考圖**(既有同風格素材/截圖),prompt 明講「**只取其視覺風格**(材質、光效、等角、發光),重新畫新內容」。
 - **元件呼應內容**:場景由**多個元件**組成,每個元件對應該卡的一個文字重點(例:儀表板卡=長條圖+趨勢+圓餅+看板+AI 警示);元件清單直接從原始資料/RFP 長出來。
 - **材質改「不透明霧面」才能去背(關鍵)**:場景**一律去背**成透明 PNG 才能浮貼(卡片漸層從空隙透出)。但**真半透明玻璃無法乾淨去背**(背景色透進物件變粉)——故 prompt 材質改 **`matte OPAQUE frosted (looks like glass but fully opaque, NOT see-through)`**:外觀仍是玻璃霧面、實際不透明,即可用 chroma-key 乾淨挖背。
-- **去背流程**:生成在**純洋紅 `#FF00FF` 平背景**(prompt 明講「忽略參考圖背景、務必純洋紅、非白」)→ `scripts/chroma_key.js`(自動偵測四角背景色,不限洋紅)→ 透明 PNG。若模型畫成白底,重產並強化背景指令。
+- **去背流程**:生成在**純洋紅 `#FF00FF` 平背景**(prompt 明講「忽略參考圖背景、務必純洋紅、非白」)→ `scripts/chroma_key.js`(自動偵測四角背景色)→ 透明 PNG。若模型畫成白底,重產並強化背景指令。
 - **浮貼嵌入**:透明場景以 `<image preserveAspectRatio="xMidYMid meet">` 放在卡片內文下方,**不裁切、不墊底色**,卡片漸層自然透出 → 真正浮貼(見 `gen_blueprint.js` / `gen_blueprint2.js`)。
 - **換色**:配合卡色,於 prompt 指定色系(如 `opaque TEAL frosted with aqua glow`);參考圖為藍時,色彩描述需夠強才蓋過。
 - **文字**:場景可留簡短術語(§驗收),承載資訊文字仍由 SVG。
 
-> **真透明玻璃**(要保留半透明感)只有一條乾淨路:**OpenAI `background=transparent`**(真 alpha)。Gemini 洋紅去背一律走「不透明霧面」。
+> **真透明玻璃**(要保留半透明感)只有一條乾淨路:**OpenAI `background=transparent`**(真 alpha)。Gemini 去背一律走「不透明霧面」。
 > 對應版型:平行卡見 `scripts/gen_blueprint.js`、階梯成長見 `scripts/gen_blueprint2.js`。
 
 ## 產出物與留存

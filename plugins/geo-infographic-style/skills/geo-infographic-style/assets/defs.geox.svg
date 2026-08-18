@@ -1,0 +1,94 @@
+<!-- Style pack「GEOX 深藍風」專用 defs。用法同 defs.svg:複製進圖檔的 defs 區塊,或由 gen_*.js 內嵌。
+     與 defs.svg 不可混用(色票不同一組)。規格見 references/style-packs/geox-navy.md -->
+<svg xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- ===== 頁面底板 ===== -->
+    <linearGradient id="gPage" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#EDF3FB"/>
+    </linearGradient>
+
+    <!-- ===== 群組專色:淺底(承載文字的表面) ===== -->
+    <linearGradient id="xBandB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7FBFF"/><stop offset="1" stop-color="#E2EDFB"/></linearGradient>
+    <linearGradient id="xBandG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F5FCF9"/><stop offset="1" stop-color="#DDF3EA"/></linearGradient>
+    <linearGradient id="xBandO" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFAF5"/><stop offset="1" stop-color="#FBE6D4"/></linearGradient>
+    <linearGradient id="xBandP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FAF7FF"/><stop offset="1" stop-color="#EAE0FA"/></linearGradient>
+    <linearGradient id="xBandT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F4FBFB"/><stop offset="1" stop-color="#D9EFEF"/></linearGradient>
+    <linearGradient id="xBandR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF8F6"/><stop offset="1" stop-color="#FBE0DB"/></linearGradient>
+
+    <!-- ===== 群組專色:深色列/膠囊(三段漸層) ===== -->
+    <linearGradient id="xHdrB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4A93E4"/><stop offset=".5" stop-color="#1F6FD0"/><stop offset="1" stop-color="#0F4680"/></linearGradient>
+    <linearGradient id="xHdrG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3FC898"/><stop offset=".5" stop-color="#17A673"/><stop offset="1" stop-color="#0A6647"/></linearGradient>
+    <linearGradient id="xHdrO" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FBA469"/><stop offset=".5" stop-color="#ED7D31"/><stop offset="1" stop-color="#A94A0F"/></linearGradient>
+    <linearGradient id="xHdrP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A47AE0"/><stop offset=".5" stop-color="#7C4DBC"/><stop offset="1" stop-color="#4B2882"/></linearGradient>
+    <linearGradient id="xHdrT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3EB6B5"/><stop offset=".5" stop-color="#12908F"/><stop offset="1" stop-color="#075B5A"/></linearGradient>
+    <linearGradient id="xHdrR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#DB6656"/><stop offset=".5" stop-color="#C0392B"/><stop offset="1" stop-color="#7E1F15"/></linearGradient>
+
+    <!-- ===== 球面徽章 ===== -->
+    <radialGradient id="xSphB" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#6FAEF2"/><stop offset="1" stop-color="#12508F"/></radialGradient>
+    <radialGradient id="xSphG" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#54D4A5"/><stop offset="1" stop-color="#0B6E4B"/></radialGradient>
+    <radialGradient id="xSphO" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#FFBC85"/><stop offset="1" stop-color="#B85310"/></radialGradient>
+    <radialGradient id="xSphP" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#B48DEC"/><stop offset="1" stop-color="#502B8C"/></radialGradient>
+    <radialGradient id="xSphT" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#4FC7C6"/><stop offset="1" stop-color="#07615F"/></radialGradient>
+    <radialGradient id="xSphR" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#E5776A"/><stop offset="1" stop-color="#8A231A"/></radialGradient>
+    <radialGradient id="xSphN" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#5C86C4"/><stop offset="1" stop-color="#0E2A5C"/></radialGradient>
+
+    <!-- ===== 深色磚 / 重點卡 / 結論帶 ===== -->
+    <linearGradient id="xTile" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#1B4F9C"/><stop offset=".55" stop-color="#123B7A"/><stop offset="1" stop-color="#0E2A5C"/>
+    </linearGradient>
+    <linearGradient id="xConclude" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1E4C97"/><stop offset=".5" stop-color="#143B7C"/><stop offset="1" stop-color="#0E2C5E"/>
+    </linearGradient>
+    <linearGradient id="xGloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".28"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- ===== 青輝光平台(素材落地用) ===== -->
+    <radialGradient id="xGlowPad" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#5FDCFF" stop-opacity=".55"/>
+      <stop offset=".55" stop-color="#29C5F6" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#29C5F6" stop-opacity="0"/>
+    </radialGradient>
+    <!-- 圓柱體(DataHub 類)柱身。亮度對齊原簡報:中段須明顯偏亮,深色只留左右兩緣。 -->
+    <linearGradient id="xCylBody" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#123A6E"/><stop offset=".16" stop-color="#2A6FD0"/>
+      <stop offset=".46" stop-color="#4295EE"/><stop offset=".8" stop-color="#1E56A8"/><stop offset="1" stop-color="#0E2E5E"/>
+    </linearGradient>
+    <linearGradient id="xCylTop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5AA6F2"/><stop offset="1" stop-color="#1E56A0"/>
+    </linearGradient>
+    <!-- 台座各層:上層面與側壁(側壁較暗以做出厚度) -->
+    <linearGradient id="xTierTop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4A90E2"/><stop offset="1" stop-color="#153E7E"/>
+    </linearGradient>
+    <linearGradient id="xTierSide" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0C2A55"/><stop offset=".45" stop-color="#1D4E92"/><stop offset="1" stop-color="#09203F"/>
+    </linearGradient>
+
+    <!-- ===== 濾鏡 ===== -->
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="165%">
+      <feDropShadow dx="0" dy="9" stdDeviation="12" flood-color="#0E2A5C" flood-opacity="0.14"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0E2A5C" flood-opacity="0.10"/>
+    </filter>
+    <filter id="card2" x="-25%" y="-25%" width="150%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#0E2A5C" flood-opacity="0.13"/>
+    </filter>
+    <filter id="row" x="-20%" y="-40%" width="140%" height="200%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0E2A5C" flood-opacity="0.10"/>
+    </filter>
+    <filter id="hdr" x="-20%" y="-40%" width="140%" height="200%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#0A1F3D" flood-opacity="0.26"/>
+    </filter>
+    <filter id="obj" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0A1F3D" flood-opacity="0.28"/>
+    </filter>
+    <!-- 青輝光(本 pack 識別特徵):連線與輪廓用 -->
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowSoft" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
+</svg>

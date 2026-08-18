@@ -1,0 +1,9 @@
+{
+  "name": "geo-meeting-minutes-builder",
+  "description": "把會議逐字稿/手寫摘要/簡報等資料轉成「整理後逐字稿 MD＋會議記錄 MD＋版本記錄表」，支援對外/內部會議結構、無逐字稿模式、跨會議追蹤（前次待辦進度回顧）；交付後可加選知識萃取 HTML（五類卡片＋SVG 分布圖）供技能與知識傳承。音檔/影片由 geo-transcribe-minutes 先轉錄",
+  "version": "20260818.06",
+  "author": {
+    "name": "Lancelot Lin",
+    "email": "lancelot.lin0305@gmail.com"
+  }
+}
