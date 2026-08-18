@@ -13,7 +13,7 @@ description: >-
   或上傳修改後的圖檔 / .md / .drawio / .bpmn / 相關描述文字要求更新迭代。
 ---
 
-<!-- skill 20260817.01 -->
+<!-- skill 20260818.02 -->
 <!-- 修改本 skill 時:同步更新上行版號(yyyymmdd.兩位數序號),並在 CHANGELOG.md 增列 -->
 
 # BPMN 直式流程圖產生器
@@ -55,7 +55,9 @@ description: >-
 一次產齊。圖檔 XML 格式預設 `.drawio`、不需詢問(僅使用者明講 bpmn.io 才
 `fmt="bpmn"`;兩格式不相容)——清單與規則見 `workflow.md`。有產圖檔 XML 時交付前
 `python3 scripts/validate_bpmn.py <輸出資料夾>` 須通過;未產 XML 時以 emit 內建
-檢核為門檻(本環境無法 render SVG,以離線檢查為準)。
+檢核為門檻(本環境無法 render SVG,以離線檢查為準)。**交付前另以乾淨 session
+subagent 獨立檢核**(忠實度/規則遵循/殘餘缺陷挑戰,見 `workflow.md`「獨立檢核」節;
+使用者明確要求快速出圖可跳過,交付說明須註記)。
 
 **git 版控模式**:輸出資料夾位於 git 工作樹內時(emit/emit_multi 自動偵測,
 `git=` 可強制),不建版號子目錄、檔名不帶版號(原地覆寫同名檔),版本演進
