@@ -1,5 +1,14 @@
 # CHANGELOG — geo-transcribe-minutes
 
+## 20260820.01(使用者裁決:輸出慣例＋關鍵畫面截圖)
+- **檔案輸出慣例**:每次產檔一律先建資料夾把相關檔放進去;資料夾與每個檔名一律以
+  產出當天絕對日期 `YYYYMMDD-<相關名稱>` 為前綴(SKILL 產出節改寫)。
+- **重點摘要截取關鍵畫面**:影音來源產摘要時,若有重要畫面(操作介面/圖文簡報/demo/
+  數據圖表)一律截圖存入當批資料夾並 base64 內嵌單檔 HTML(新增 workflow §2b:
+  yt-dlp+Deno 突破 YouTube 403、ffmpeg 抽幀、近似時間戳前後多抽再挑;
+  polish-and-summary §B3 影片模式標為必做)。
+- engines.md 線上影片來源節補 Deno(JS runtime)+`player_client=mweb` 下載可行解。
+
 ## 20260818.07(使用者裁決:統一 I/O 契約——標準交付組合)
 - **輸入面**:既有逐字稿(txt/md/srt)重新開放為本 skill 會議模式入口(免轉錄直接
   進順稿);新增參考資料輸入——RFP/需求文件(專名與背景,引用標 [RFP p.X])、

@@ -102,10 +102,15 @@ insanely-fast-whisper(停更、flash-attn Windows 難裝)、NVIDIA Parakeet/Cana
 YouTube 已部署 PO Token+SABR,裸跑常 403。可行做法(住宅網路成功率高):
 ```powershell
 winget install yt-dlp.yt-dlp
+winget install DenoLand.Deno   # JS runtime;新版 yt-dlp 需要它才能生 PO Token,否則影片流 403
 # 1) 先試零成本:抓 YouTube 自動字幕(品質普通,交給 Claude 重整仍很能用)
 yt-dlp --write-auto-sub --sub-lang "zh-TW,zh-Hant,zh,en" --skip-download --convert-subs srt "URL"
 # 2) 抽音軌(必要時加 --cookies-from-browser firefox / chrome)
 yt-dlp -x --audio-format m4a "URL"
+# 3) 要下載「畫面」做截圖時(實測 2026-08 可行):Deno + mweb client 取 360p 進度檔
+yt-dlp --js-runtimes deno --extractor-args "youtube:player_client=mweb" -f "b[height<=720]/best" -o video.mp4 "URL"
+#    ↑ web/tv/web_safari client 常回「Only images available」或 403;mweb 進度檔(format 18)最穩。
+#    cookies-from-browser 若遇 chrome/edge DB 鎖定(瀏覽器開著)會失敗,改用上式免 cookie。
 ```
 公開 YouTube 影片的**最省事路徑是直接把 URL 給 Gemini**(generateContent 的 file_data.file_uri 填 YouTube URL),完全跳過下載;transcribe.py 未內建此路徑,需要時由 Claude 以 curl/Python 直接呼叫。
 

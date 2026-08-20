@@ -44,6 +44,19 @@ python scripts/transcribe.py <輸入檔> --engine <選定> --keyterms "詞1,詞2
   引導使用者取得 Groq 免費 key(engines.md)。
 - 超過 2 小時的長檔:先向使用者確認成本/時間預估再跑。
 
+## 2b. 關鍵畫面截圖(影音來源,產重點摘要必做)
+
+來源為影片/YouTube 且要產重點摘要時,擷取重要畫面存查並嵌入成品:
+
+- **下載**:公開 YouTube 用 yt-dlp;YouTube 403 時裝 **Deno**(JS runtime,突破 PO Token),
+  `player_client=mweb` 常可取得 360p 進度檔(截圖夠用)。命令:
+  `yt-dlp --js-runtimes deno --extractor-args "youtube:player_client=mweb" -f "b[height<=720]/best" -o video.mp4 "URL"`。
+- **抽幀**:依關鍵時間戳用 ffmpeg 抽單幀:`ffmpeg -ss hh:mm:ss -i video.mp4 -frames:v 1 -q:v 3 out.jpg`。
+  Gemini 時間戳為近似值,常需在目標點前後多抽幾張再挑(投影片轉場會抽到過渡畫面)。
+- **挑選**:優先「操作介面 / 圖文簡報頁 / demo 操作 / 關鍵數據圖表」;每張標時間戳。
+- **存放**:存進當批資料夾子夾 `YYYYMMDD-截圖\`(檔案輸出慣例見 SKILL.md 產出節);
+  最終以 base64 內嵌進單檔自足 HTML(§5)。
+
 ## 3. 順稿(Claude 執行)
 
 依 `polish-and-summary.md` §A:

@@ -1,7 +1,7 @@
 {
   "name": "geo-transcribe-minutes",
   "description": "會議產出管線入口：輸入影音檔/語音檔/YouTube/既有逐字稿，可附參考資料（RFP、歷次會議記錄、術語表）；會議模式輸出標準交付組合四件——順稿逐字稿 MD、重點摘要 MD、重點摘要 SVG HTML、公文體會議紀錄 DOCX；另支援技術傳承與影片重點模式。多引擎轉錄自動偵測（Gemini/Groq/ElevenLabs/OpenAI/本地 faster-whisper 與 SenseVoice），中文一律輸出繁體台灣用語",
-  "version": "20260818.07",
+  "version": "20260820.01",
   "author": {
     "name": "Lancelot Lin",
     "email": "lancelot.lin0305@gmail.com"
