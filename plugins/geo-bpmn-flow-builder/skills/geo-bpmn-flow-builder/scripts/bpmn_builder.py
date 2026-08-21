@@ -52,9 +52,11 @@ def _safe_stem(s):
     return s or "diagram"
 
 MIN_ASPECT = 1.3                   # viewBox 最低寬高比:過窄的直式圖在預覽器會裁底
-PAD_CAP = 2.0                      # 補白封頂:補白後寬 ≤ 內容寬 × PAD_CAP(主圖至少佔畫布一半),
+PAD_CAP = 1.4                      # 補白封頂:補白後寬 ≤ 內容寬 × PAD_CAP(主圖至少佔畫布 71%),
                                    # 超長圖不再被補白稀釋成細條;封頂生效時 SVG 根元素標
                                    # data-pad="capped",validate_bpmn.py 據此放行並改提醒
+                                   # 20260821.02:2.0→1.4——封頂生效即表示補白達不到 MIN_ASPECT,
+                                   # 預覽仍需捲動,大留白無效益(使用者回饋左右各 25% 太多)
 BAND_COLORS = [("#f2f8f2", "#6f9f78"), ("#f6f4fb", "#8a7fb8"),
                ("#fdf6ec", "#c2955a"), ("#eef6fa", "#5a8fb0")]
 
@@ -3584,8 +3586,23 @@ def _drawio_page_xml(x, page_id):
                       _DIO_EDGE)
     for mid, s, tg, lab in mflows:
         if s in allnodes and tg in allnodes:
-            emit_edge("dio_%s" % mid, s, tg, lab,
-                      mf_waypoints(allnodes[s], allnodes[tg]), _DIO_MSG)
+            wps = mf_waypoints(allnodes[s], allnodes[tg])
+            emit_edge("dio_%s" % mid, s, tg, lab, wps, _DIO_MSG)
+            # 中點信封裝飾(訊息流慣例;20260821.03 與 SVG 一致):
+            # draw.io 邊標籤錨定在路徑中點,信封置最長水平段中點的
+            # 標籤左側、線上方(SVG 為 label_pos 左側,錨定基準不同)
+            segs = [(abs(x2 - x1), (x1 + x2) / 2.0, y1)
+                    for (x1, y1), (x2, y2) in zip(wps, wps[1:])
+                    if abs(y1 - y2) < 1 and abs(x2 - x1) > 24]
+            if segs:
+                _, ecx, ecy = max(segs)
+            else:
+                ecx, ecy = label_pos(wps)
+            ex = ecx - (len(lab) * 5.5 + 14 if lab else 8)
+            cell("dio_%s__env" % mid, "",
+                 "shape=message;html=1;fillColor=#ffffff;"
+                 "strokeColor=#6b7b8b;strokeWidth=1.2;",
+                 int(ex - 8), int(ecy - 16), 16, 11)
     for proc in pools:
         for aid, s, tg, lab in proc.assocs:
             if _is_flowref(s) or _is_flowref(tg):
