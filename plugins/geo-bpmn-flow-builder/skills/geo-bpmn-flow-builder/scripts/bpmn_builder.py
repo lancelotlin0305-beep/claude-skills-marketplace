@@ -3322,10 +3322,14 @@ _DIO_EVENT_SYM = {"start": "general", "end": "general",
                   "signal": "signal", "link": "link", "cancel": "cancel",
                   "multiple": "multiple", "parallelMultiple": "parallelMultiple"}
 _DIO_GW = ("shape=mxgraph.bpmn.gateway2;html=1;verticalLabelPosition=bottom;"
-           "labelBackgroundColor=#ffffff;verticalAlign=top;align=center;"
+           "labelBackgroundColor=#ffffff;verticalAlign=top;align=center;fontSize=11;"
            "perimeter=rhombusPerimeter;outlineConnect=0;")
-_DIO_GW_KIND = {"exclusive": "outline=none;symbol=exclusiveGw;",   # 判斷分支:菱形內 X 記號(規範)
-                "event": "outline=throwing;symbol=multiple;",       # 事件型:雙圈五邊形
+_DIO_GW_KIND = {"exclusive": "outline=none;symbol=none;gwType=exclusive;",  # 判斷分支:菱形內 X 記號(規範)
+                # 20260821 引擎規則一致化:gateway2 讀 gwType(預設 event),
+                # 舊值 symbol=exclusiveGw 是 mxgraph.bpmn.shape 的參數,gateway2
+                # 不認得 → X 消失;event 型 outline=throwing 會反白五邊形,
+                # 改 catching(雙實圈、圖示空心)同 SVG。
+                "event": "outline=catching;symbol=multiple;",        # 事件型:雙圈五邊形
                 "parallel": "outline=none;symbol=none;gwType=parallel;",
                 "inclusive": "outline=end;symbol=general;"}
 # 活動四型:官方 task2 形狀 + taskMarker;顏色讀 STYLE(container=0 維持平面模型)
@@ -3338,9 +3342,9 @@ _DIO_TASK_MARK = {"user": "taskMarker=user;", "system": "taskMarker=service;",
                   "call": "taskMarker=abstract;",
                   "generic": "taskMarker=abstract;"}
 # 工件:文件形(data2,input/output 箭頭)與資料庫圓柱;名稱置下方
-_DIO_DATA = ("shape=mxgraph.bpmn.data2;html=1;labelPosition=center;"
+_DIO_DATA = ("shape=mxgraph.bpmn.data2;html=1;labelPosition=center;fontSize=11;"
              "verticalLabelPosition=bottom;align=center;verticalAlign=top;size=15;")
-_DIO_DATASTORE = ("shape=datastore;whiteSpace=wrap;html=1;"
+_DIO_DATASTORE = ("shape=datastore;whiteSpace=wrap;html=1;fontSize=11;"
                   "verticalLabelPosition=bottom;verticalAlign=top;align=center;")
 _DIO_ASSOC = ("edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;dashPattern=1 4;"
               "endArrow=none;startArrow=none;strokeColor=#8a99a8;fontSize=11;"
@@ -3350,10 +3354,13 @@ _DIO_EDGE = ("edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;"
              "jettySize=auto;html=1;strokeColor=#3a4a59;"
              "endArrow=block;endFill=1;startArrow=none;"
              "jumpStyle=arc;jumpSize=10;"   # 鐵則⑤:交叉處原生跨線橋
-             "labelBackgroundColor=#ffffff;fontSize=11;")
+             # 20260821 引擎規則一致化:分支標籤同 SVG(橘棕粗體)
+             "labelBackgroundColor=#ffffff;fontSize=12;"
+             "fontColor=#b0451f;fontStyle=1;")
 _DIO_MSG = ("edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;"
             "startArrow=oval;startFill=0;startSize=6;endArrow=open;endFill=0;"
-            "strokeColor=#7a4a12;fontColor=#7a4a12;"
+            # 20260821 引擎規則一致化:訊息流線色/標籤色同 SVG(原 #7a4a12 棕)
+            "strokeColor=#6b7b8b;fontColor=#52606d;"
             "labelBackgroundColor=#ffffff;fontSize=11;")
 
 
@@ -3512,12 +3519,12 @@ def _drawio_page_xml(x, page_id):
                     ol = "end"
                 elif t in ("start", "terminate"):
                     ol = "standard"
-                elif not indeg.get(n["id"]):
-                    ol = "standard"
-                elif not outdeg.get(n["id"]):
-                    ol = "end"
+                elif indeg.get(n["id"]) and outdeg.get(n["id"]):
+                    # 流程中間事件:雙圈;throw=擲出(圖示實心反白)、
+                    # 否則 catch(catching:雙實圈、圖示空心)—— 同 SVG 規則
+                    ol = "throwing" if n.get("kind") == "throw" else "catching"
                 else:
-                    ol = "throwing"          # 流程中間事件:雙圈
+                    ol = "standard"   # 觸發起點/終點:單細圈(同 SVG 規則,20260821)
                 style = (_DIO_EVENT
                          + "outline=%s;symbol=%s;" % (ol, _DIO_EVENT_SYM[t])
                          + "fillColor=%s;strokeColor=%s;strokeWidth=%s;"
