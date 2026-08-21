@@ -290,9 +290,9 @@ MIN_ASPECT = 1.3
 def check_svg_preview(f):
     """SVG 預覽安全檢查:①根元素不得寫死 width/height(僅 viewBox,否則預覽無法
     自適應);②寬高比 >= MIN_ASPECT(直式過長會在「以寬度撐滿」的預覽器被裁底且
-    無法捲動)——但根元素帶 data-pad="capped"(builder 補白封頂標記:主圖至少佔
-    畫布一半,寧可裁底不稀釋)時放行、改列提醒;③背景矩形完整覆蓋 viewBox。
-    回傳 (errors, notes)。"""
+    無法捲動)——但根元素帶 data-pad="capped"(builder 標記:左右留白固定 50px、
+    不補白湊比例,寧可裁底不稀釋,20260821.04)時放行、改列提醒;③背景矩形完整
+    覆蓋 viewBox。回傳 (errors, notes)。"""
     import re
     errs, notes = [], []
     s = open(f, encoding="utf-8").read()
@@ -300,17 +300,26 @@ def check_svg_preview(f):
     if not m:
         return ["找不到 <svg> 根元素"], []
     attrs = dict(re.findall(r'([\w:-]+)="([^"]*)"', m.group(0)))
-    for bad in ("width", "height"):
-        if bad in attrs:
-            errs.append(f'根元素寫死 {bad}="{attrs[bad]}" — 請移除,只保留 viewBox')
     if "viewBox" not in attrs:
         errs.append("根元素缺少 viewBox")
         return errs, notes
     vx, vy, vw, vh = (float(v) for v in attrs["viewBox"].split())
+    # 20260821.05:width/height 改為「允許且建議」——Office/Word 匯入無顯式
+    # 尺寸的 SVG 會以預設視口渲染而裁右側;但值必須與 viewBox 尺寸一致
+    # (帶百分比或不一致的寫死值仍擋)
+    for k, want in (("width", vw), ("height", vh)):
+        if k in attrs:
+            try:
+                ok = abs(float(attrs[k]) - want) < 1e-6
+            except ValueError:
+                ok = False
+            if not ok:
+                errs.append(f'根元素 {k}="{attrs[k]}" 與 viewBox 尺寸 {want:g} 不一致'
+                            f' — 請改為等值數字或移除')
     if vw / vh < MIN_ASPECT - 1e-9:
         if attrs.get("data-pad") == "capped":
-            notes.append(f"寬高比 {vw/vh:.2f} < {MIN_ASPECT}(補白已封頂:主圖佔畫布"
-                         f"≥1/2)——對話內 SVG 預覽可能裁底,細看請用 _檢視器.html")
+            notes.append(f"寬高比 {vw/vh:.2f} < {MIN_ASPECT}(builder 固定左右留白"
+                         f" 50px、不補白)——對話內 SVG 預覽可能裁底,細看請用 _檢視器.html")
         else:
             errs.append(f"viewBox 寬高比 {vw/vh:.2f} < {MIN_ASPECT} — 直式過長預覽會裁底;"
                         f"請將畫布左右補白至寬度 >= {int(vh*MIN_ASPECT)+1}")

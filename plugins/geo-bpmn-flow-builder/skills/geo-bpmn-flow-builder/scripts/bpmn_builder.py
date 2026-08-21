@@ -51,12 +51,10 @@ def _safe_stem(s):
     s = re.sub(r'[<>:"/\\|?*]', "_", s).strip(" .")
     return s or "diagram"
 
-MIN_ASPECT = 1.3                   # viewBox 最低寬高比:過窄的直式圖在預覽器會裁底
-PAD_CAP = 1.4                      # 補白封頂:補白後寬 ≤ 內容寬 × PAD_CAP(主圖至少佔畫布 71%),
-                                   # 超長圖不再被補白稀釋成細條;封頂生效時 SVG 根元素標
-                                   # data-pad="capped",validate_bpmn.py 據此放行並改提醒
-                                   # 20260821.02:2.0→1.4——封頂生效即表示補白達不到 MIN_ASPECT,
-                                   # 預覽仍需捲動,大留白無效益(使用者回饋左右各 25% 太多)
+MIN_ASPECT = 1.3                   # viewBox 最低寬高比:過窄的直式圖在預覽器會裁底。
+                                   # 20260821.04:不再左右補白湊比例(使用者指示交付版
+                                   # 左右留白固定 50px);比例低於此值僅標 data-pad="capped",
+                                   # validate_bpmn.py 據此放行並改提醒(舊 PAD_CAP 補白封頂退役)
 BAND_COLORS = [("#f2f8f2", "#6f9f78"), ("#f6f4fb", "#8a7fb8"),
                ("#fdf6ec", "#c2955a"), ("#eef6fa", "#5a8fb0")]
 
@@ -4053,8 +4051,10 @@ def _svg_assocs(proc, segs=None):
 
 
 def build_svg(x, pad_aspect=True):
-    """pad_aspect=True:正式交付 .svg,寬高比低於 MIN_ASPECT 時左右補白(預覽安全)。
-    pad_aspect=False:未補白版,僅供 HTML 檢視器內嵌(檢視器自帶縮放,補白反而讓圖變小)。"""
+    """pad_aspect=True:正式交付 .svg,左右留白固定 PAD_X(50px);寬高比低於
+    MIN_ASPECT 時不再補白,僅標 data-pad="capped" 供 validate 放行(20260821.04,
+    使用者指示:兩側留白減至 50px,寧可預覽捲動不稀釋主圖)。
+    pad_aspect=False:上下左右皆 PAD(24px),供 HTML 檢視器內嵌(檢視器自帶縮放)。"""
     _ensure(x)
     pools, mflows = _pools_mflows(x)
     title = f"{x.name} {x.version}"
@@ -4063,9 +4063,9 @@ def build_svg(x, pad_aspect=True):
     for proc in pools:
         allnodes.update(proc.nodes)
 
-    # viewBox 內容自適應:依實際內容範圍四邊各留 PAD 小留白;
-    # 寬高比不寫死,但低於 MIN_ASPECT(直式過長會被預覽器裁底)時左右對稱補白。
+    # viewBox 內容自適應:上下各留 PAD,左右各留 PAD_X(交付版 50px)
     PAD = 24
+    PAD_X = 50 if pad_aspect else PAD
     horiz = any(getattr(p, "horizontal", False) for p in pools)
     node_based = horiz or any(p.simple for p in pools)
     title_top = (POOL_Y - 20) - 19             # 圖頂標題 baseline 與字級
@@ -4085,29 +4085,28 @@ def build_svg(x, pad_aspect=True):
                      + [getattr(p, "_h_bottom", 0) for p in pools if horiz])
         for _bx, _bn, box, bw in getattr(x, "_bb_geo", []):
             right = max(right, box + bw)
-        vx, vy = left - PAD, min(title_top, top) - PAD
-        vw = (right - left) + PAD * 2
+        vx, vy = left - PAD_X, min(title_top, top) - PAD
+        vw = (right - left) + PAD_X * 2
         vh = (bottom - min(title_top, top)) + PAD * 2
     else:
         left = min(proc.ox for proc in pools)
         right = max(proc.ox + proc.pool_width() for proc in pools)
         for _bx, _bn, box, bw in getattr(x, "_bb_geo", []):
             right = max(right, box + bw)
-        vx, vy = left - PAD, title_top - PAD
-        vw = (right - left) + PAD * 2
+        vx, vy = left - PAD_X, title_top - PAD
+        vw = (right - left) + PAD_X * 2
         vh = (POOL_Y + pool_h - title_top) + PAD * 2
-    pad_capped = False
-    if pad_aspect and vw / vh < MIN_ASPECT:
-        # 目標補到 MIN_ASPECT,但封頂於內容寬 × PAD_CAP:超長圖寧可維持
-        # 比例偏窄(預覽可能需捲動/裁底,細看用檢視器),也不把主圖稀釋成細條。
-        nw = min(math.ceil(vh * MIN_ASPECT), math.ceil(vw * PAD_CAP))
-        pad_capped = nw < vh * MIN_ASPECT
-        vx -= (nw - vw) // 2
-        vw = nw
+    # 20260821.04:不再左右補白湊寬高比;比例偏窄僅標 data-pad="capped"
+    # 供 validate 放行(預覽可能需捲動/裁底,細看用檢視器)
+    pad_capped = pad_aspect and vw / vh < MIN_ASPECT
 
+    # 20260821.05:交付版補顯式 width/height(=viewBox 尺寸)——Office/Word
+    # 匯入無尺寸的 SVG 會以預設視口渲染而裁掉右側;<img>/預覽嵌入仍依容器
+    # 縮放不受影響。檢視器內嵌版(pad_aspect=False)由檢視器 JS 自行設定尺寸。
+    size_attr = f'width="{vw}" height="{vh}" ' if pad_aspect else ''
     s = [f'<svg xmlns="http://www.w3.org/2000/svg" role="img" '
          f'aria-label={quoteattr(_clean(title))} '
-         f'viewBox="{vx} {vy} {vw} {vh}" '
+         f'viewBox="{vx} {vy} {vw} {vh}" ' + size_attr
          + ('data-pad="capped" ' if pad_capped else '')
          + f'font-family="Microsoft JhengHei, PingFang TC, Noto Sans CJK TC, sans-serif">']
     s.append(f'<title>{escape(_clean(title))}</title>')   # 螢幕閱讀器可讀圖名(無障礙)
